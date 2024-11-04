@@ -1,0 +1,183 @@
+/* style.css */
+QMainWindow {
+    background-color: #181928;
+    color: #FFFFFF;
+}
+
+QWidget {
+    background-color: #181928;
+    color: #FFFFFF;
+}
+
+QLabel, QPushButton, QTextEdit, QComboBox, QListWidget, QTreeWidget {
+    color: #FFFFFF;
+    background-color: #181928;
+    border: none;
+}
+
+/* Estilo para QLineEdit */
+QLineEdit {
+    color: #FFFFFF;
+    background-color: #2C2F3F; /* Cor de fundo padrão */
+    border: 1px solid #3C3C5A; /* Borda padrão */
+    padding: 5px;
+    border-radius: 5px;
+}
+
+QLineEdit:focus {
+    border: 1px solid #D4F8F2; /* Borda ao focar */
+    background-color: #1E2130; /* Fundo mais escuro ao focar */
+}
+
+QLineEdit:disabled {
+    color: #7A7B8C; /* Cor do texto quando desabilitado */
+    background-color: #2C2F3F; /* Fundo quando desabilitado */
+}
+
+/* Estilo para QLineEdit */
+QTextEdit {
+    color: #FFFFFF;
+    background-color: #2C2F3F; /* Cor de fundo padrão */
+    border: 1px solid #3C3C5A; /* Borda padrão */
+    padding: 5px;
+    border-radius: 5px;
+}
+
+QTextEdit:focus {
+    border: 1px solid #D4F8F2; /* Borda ao focar */
+    background-color: #1E2130; /* Fundo mais escuro ao focar */
+}
+
+QTextEdit:disabled {
+    color: #7A7B8C; /* Cor do texto quando desabilitado */
+    background-color: #2C2F3F; /* Fundo quando desabilitado */
+}
+
+
+/* Estilo para QComboBox */
+QComboBox {
+    color: #FFFFFF;
+    background-color: #2C2F3F; /* Cor de fundo padrão */
+    border: 1px solid #3C3C5A; /* Borda padrão */
+    padding: 5px;
+    border-radius: 5px;
+}
+
+
+/* Estilo para a lista de opções do QComboBox */
+QComboBox QAbstractItemView {
+    color: #FFFFFF;
+    background-color: #2C2F3F; /* Fundo para lista de opções */
+    border: 1px solid #3C3C5A;
+}
+
+QPushButton:hover {
+    background-color: #222236;
+    color: #FFFFFF;
+}
+
+QPushButton:pressed {
+    background-color: #3C3C5A;
+    color: #FFFFFF;
+}
+
+/* Estilo para QTableView */
+QTableView {
+    background-color: #181928;
+    color: #FFFFFF;
+}
+
+QTableView::item:selected {
+    background-color: #2C2F3F; /* Cor da linha selecionada */
+    color: #D4F8F2; /* Cor do texto na linha selecionada */
+}
+
+/* Borda opcional ao redor dos itens selecionados */
+QTableView::item {
+    border: 1px solid transparent;
+    padding: 5px;
+}
+
+.nav-button {
+    background-color: #181928;
+    color: #8BE9D9;
+    border: none;
+    padding: 10px 20px;
+}
+
+.nav-button:hover {
+    background-color: #13141F;
+}
+
+/* Estilo para o botão selecionado */
+.nav-button.selected {
+    background-color: #13141F;
+    color: #8BE9D9;
+}
+
+/* Estilo para QCheckBox */
+QCheckBox {
+    color: #FFFFFF;
+    font-size: 14px;
+    background-color: #181928;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #3C3C5A;
+    background-color: #2C2F3F;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #4482C3;
+    border: 1px solid #D4F8F2;
+}
+
+QCheckBox::indicator:hover {
+    background-color: #222236;
+}
+
+/* Estilo para QRadioButton */
+QRadioButton {
+    color: #FFFFFF;
+    font-size: 14px;
+    background-color: #181928;
+}
+
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    border: 1px solid #3C3C5A;
+    background-color: #2C2F3F;
+}
+
+QRadioButton::indicator:checked {
+    background-color: #4482C3;
+    border: 1px solid #D4F8F2;
+}
+
+QRadioButton::indicator:hover {
+    background-color: #222236;
+}
+
+/* Estilo para QButtonGroup - Aplicado através de QPushButton dentro de QButtonGroup */
+QButtonGroup QPushButton {
+    background-color: #2C2F3F;
+    color: #FFFFFF;
+    border: 1px solid #3C3C5A;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+QButtonGroup QPushButton:hover {
+    background-color: #222236;
+    color: #FFFFFF;
+}
+
+QButtonGroup QPushButton:checked {
+    background-color: #4482C3;
+    color: #181928;
+    border: 1px solid #D4F8F2;
+}
