@@ -3,9 +3,6 @@ from modules.dispensa_eletronica.views import DispensaEletronicaWidget
 from modules.dispensa_eletronica.dialogs.add_item import AddItemDialog
 from modules.dispensa_eletronica.dialogs.salvar_tabela import SaveTableDialog
 from modules.dispensa_eletronica.dialogs.graficos import GraficTableDialog
-from modules.dispensa_eletronica.dialogs.gerar_tabela import TabelaResumidaManager
-from modules.dispensa_eletronica.dialogs.editar_dados import EditDataDialog
-from modules.dispensa_eletronica.utils.db_manager import carregar_dados_dispensa
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 import pandas as pd

@@ -2,15 +2,24 @@
 from pathlib import Path
 from PyQt6.QtGui import QIcon
 from config.paths import ICONS_DIR
+import logging
+
+# Configuração de logging
+logging.basicConfig(level=logging.WARNING)
+logger = logging.getLogger(__name__)
 
 # Cache para ícones
 _icon_cache = {}
 
 def load_icon(icon_name):
-    """Carrega e armazena em cache os ícones como QIcon."""
+    """Carrega e armazena em cache os ícones como QIcon. Verifica se o arquivo existe antes de carregar."""
     if icon_name not in _icon_cache:
         icon_path = ICONS_DIR / icon_name
-        _icon_cache[icon_name] = QIcon(str(icon_path))
+        if icon_path.exists():
+            _icon_cache[icon_name] = QIcon(str(icon_path))
+        else:
+            logger.warning(f"Ícone '{icon_name}' não encontrado em {icon_path}")
+            _icon_cache[icon_name] = QIcon()  # Retorna um ícone vazio em caso de falha
     return _icon_cache[icon_name]
 
 # Funções específicas para carregar ícones usados frequentemente
@@ -38,6 +47,11 @@ def load_icons():
         "excel": load_icon("excel.png"),
         "calendar": load_icon("calendar.png"),
         "report": load_icon("report.png"),
+        "signature": load_icon("signature.png"),
+        "planning": load_icon("planning.png"),
+        "website_menu": load_icon("website_menu.png"),
+        "automation": load_icon("automation.png"),
+        "pdf": load_icon("pdf.png"),
         "management": load_icon("management.png"),
         "edit": load_icon("management.png"),
         "image-processing": load_icon("image-processing.png"),
@@ -47,4 +61,4 @@ def load_icons():
         "excel_down": load_icon("excel_down.png"),
         "excel_up": load_icon("excel_up.png"),
         "acanto": load_icon("acanto.png"),
-    }
+                }

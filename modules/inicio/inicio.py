@@ -5,9 +5,9 @@ from pathlib import Path
 from config.paths import ICONS_DIR, IMAGES_DIR
 
 class InicioWidget(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, icons, parent=None):
         super().__init__(parent)
-        self.icons_dir = Path(ICONS_DIR)
+        self.icons = icons
         self.setup_ui()
 
     def setup_ui(self):
@@ -40,9 +40,6 @@ class InicioWidget(QWidget):
         # Layout à esquerda para os módulos
         self.modules_layout = QVBoxLayout()
 
-        # Carregar ícones
-        self.image_cache = self.load_initial_data()
-
         # Adiciona os módulos
         self.add_module("Atas", "Automação para criação de Atas de Registro de Preços.", "report.png")
         self.add_module("Contratos", "Gerenciamento de contratos administrativos.", "signature.png")
@@ -54,17 +51,6 @@ class InicioWidget(QWidget):
 
         # Adiciona o layout dos módulos à esquerda no layout horizontal
         modules_and_image_layout.addLayout(self.modules_layout)
-
-        # Adiciona uma imagem à direita com smooth scaling
-        self.image_tucano_label = QLabel()
-        self.image_tucano = QPixmap(str(IMAGES_DIR / "marinha_logo.png"))
-        
-        # Redimensiona a imagem mantendo a qualidade com smooth scaling
-        self.image_tucano_label.setPixmap(self.image_tucano.scaled(300, 300, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        self.image_tucano_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-
-        # Adiciona a imagem ao layout horizontal
-        modules_and_image_layout.addWidget(self.image_tucano_label)
 
         # Adiciona o layout horizontal de módulos e imagem ao layout principal vertical
         self.layout.addLayout(modules_and_image_layout)
@@ -85,7 +71,7 @@ class InicioWidget(QWidget):
 
     def add_module(self, title, description, icon_name):
         """Adiciona um módulo com ícone, título e descrição alinhados corretamente."""
-        icon = self.image_cache.get(icon_name.split('.')[0], QIcon())
+        icon = self.icons.get(icon_name.split('.')[0], QIcon())
         module_layout = QHBoxLayout()
 
         # Define espaçamento 0,0,0,0
@@ -118,22 +104,3 @@ class InicioWidget(QWidget):
         module_widget.setLayout(module_layout)
 
         self.modules_layout.addWidget(module_widget)
-        
-    def load_initial_data(self):
-        image_file_names = [
-            "report.png", "signature.png", "planning.png", 
-            "website_menu.png", "automation.png", "pdf.png", "api.png"
-        ]
-        return self.load_images(self.icons_dir, image_file_names)
-    
-
-    def load_images(self, icons_dir, image_file_names):
-        images = {}
-        for image_file_name in image_file_names:
-            image_path = icons_dir / image_file_name
-            if not image_path.is_file():
-                print(f"Image file not found: {image_path}")
-                continue
-            icon = QIcon(str(image_path))
-            images[image_file_name.split('.')[0]] = icon
-        return images

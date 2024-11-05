@@ -4,8 +4,7 @@ from PyQt6.QtCore import *
 from pathlib import Path
 from datetime import datetime
 import sqlite3
-import pandas as pd
-
+from diretorios import CONTROLE_DADOS
 class AddItemDialog(QDialog):
     def __init__(self, database_path, parent=None):
         super().__init__(parent)
@@ -161,8 +160,9 @@ class AddItemDialog(QDialog):
         return data
     
     def load_sigla_om(self):
+        self.database_om = CONTROLE_DADOS
         try:
-            with sqlite3.connect(self.database_path) as conn:
+            with sqlite3.connect(self.database_om) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT DISTINCT sigla_om, orgao_responsavel, uasg FROM controle_om ORDER BY sigla_om")
                 self.om_details = {"CeIMBra": {"orgao_responsavel": "Centro de Intendência da Marinha em Brasília", "uasg": "787010"}}

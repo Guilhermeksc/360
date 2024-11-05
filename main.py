@@ -2,7 +2,6 @@ import sys
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
-import qdarktheme
 from config.paths import STYLE_PATH, ICONS_DIR, IMAGES_DIR, DATA_DISPENSA_ELETRONICA_PATH
 from config.styles.styless import get_menu_button_style, get_menu_button_activated_style
 from modules.widgets import *
@@ -178,7 +177,7 @@ class MainWindow(QMainWindow):
         self.content_widget.setMinimumSize(1050, 700)
         self.central_layout.addWidget(self.content_widget)
         
-        self.inicio_widget = InicioWidget(self)
+        self.inicio_widget = InicioWidget(self.icons, self)
 
     def clear_content_area(self, keep_image_label=False):
         """Remove todos os widgets da área de conteúdo, exceto a imagem opcional."""
@@ -296,44 +295,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# def main():
-#     app = QApplication(sys.argv)
-
-#     # Aplicar o tema escuro
-#     app.setStyleSheet(qdarktheme.load_stylesheet("dark"))
-
-#     # Criar a splash screen e redimensionar a imagem com efeito suave
-#     splash_pix = QPixmap(str(IMAGES_DIR / "carregamento.png"))  # Substitua por sua imagem
-#     splash_pix = splash_pix.scaled(300, 300, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)  # Redimensionar com transformação suave
-
-#     splash = QSplashScreen(splash_pix, Qt.WindowType.WindowStaysOnTopHint)
-    
-#     # Definir a fonte e a cor para o texto de carregamento
-#     font = QFont()
-#     font.setPointSize(12)
-#     splash.setFont(font)
-
-#     # Mostrar a splash screen
-#     splash.show()
-
-#     # Função para atualizar a barra de progresso
-#     def update_progress(value):
-#         splash.showMessage(
-#             f"Carregando... {value}%",
-#             Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignCenter,
-#             Qt.GlobalColor.white  # Cor do texto
-#         )
-
-#     # Simular um tempo de carregamento com animação de barra de progresso
-#     for i in range(1, 101):
-#         QTimer.singleShot(i * 20, lambda value=i: update_progress(value))
-
-#     # Fechar a splash screen e mostrar a janela principal após a animação
-#     QTimer.singleShot(2000, lambda: splash.close())
-#     QTimer.singleShot(2000, lambda: MainWindow(app).show())
-
-#     sys.exit(app.exec())
-
-# if __name__ == "__main__":
-#     main()

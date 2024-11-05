@@ -4,8 +4,8 @@ from modules.dispensa_eletronica.dialogs.add_item import AddItemDialog
 from modules.dispensa_eletronica.dialogs.salvar_tabela import SaveTableDialog
 from modules.dispensa_eletronica.dialogs.graficos import GraficTableDialog
 from modules.dispensa_eletronica.dialogs.gerar_tabela import TabelaResumidaManager
-from modules.dispensa_eletronica.dialogs.editar_dados import EditDataDialog
-from modules.dispensa_eletronica.utils.db_manager import carregar_dados_dispensa
+from modules.dispensa_eletronica.dialogs.edit_data.edit_data import EditarDadosWindow
+from modules.dispensa_eletronica.database_manager.db_manager import DatabaseManager
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 import pandas as pd
@@ -25,6 +25,7 @@ class DispensaEletronicaController(QObject):
         self.view.salvar_tabela.connect(self.handle_save_table)
         self.view.salvar_graficos.connect(self.handle_save_charts)
         self.view.salvar_print.connect(self.handle_save_print)
+        self.view.rowDoubleClicked.connect(self.handle_edit_item)
 
     def handle_add_item(self):
         """Trata a ação de adicionar item."""
@@ -77,6 +78,14 @@ class DispensaEletronicaController(QObject):
         # Atualiza a visualização da tabela após alterações nos dados
         self.view.model.select()  # Recarrega os dados no modelo
 
+    def handle_edit_item(self, data):
+        dialog = EditarDadosWindow(data, self.view.icons, self.view)
+        dialog.save_data_signal.connect(self.handle_save_data)
+        dialog.show()
+    
+    def handle_save_data(self, data):
+        self.model.insert_or_update_data(data)
+        self.view.refresh_model()
 
 def show_warning_if_view_exists(view, title, message):
     if view is not None:

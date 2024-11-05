@@ -4,12 +4,12 @@ from PyQt6.QtCore import *
 from modules.utils.search_bar import setup_search_bar, MultiColumnFilterProxyModel
 from modules.utils.add_button import add_button, create_button
 from config.styles.styless import apply_table_custom_style
-from modules.dispensa_eletronica.dialogs.editar_dados import EditDataDialog
+from modules.dispensa_eletronica.dialogs.edit_data.edit_data import EditDataDialog
 from pathlib import Path
 import pandas as pd
 
 class EditarDadosWindow(QMainWindow):
-    save_data = pyqtSignal()
+    saveData = pyqtSignal()
     
     """Classe para a janela de edição de dados."""
     def __init__(self, dados, icons, parent=None):
@@ -475,7 +475,7 @@ class EditarDadosWindow(QMainWindow):
 
         layout_titulo.addWidget(title_label)
           
-        add_button("Salvar", "confirm", self.save_data, layout_titulo, self.icons, tooltip="Salvar os Dados")
+        add_button("Salvar", "confirm", self.saveData, layout_titulo, self.icons, tooltip="Salvar os Dados")
 
         # Layout consulta API em V dentro do título
         consulta_api_layout = QVBoxLayout()

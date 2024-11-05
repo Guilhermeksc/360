@@ -3,6 +3,42 @@ from PyQt6.QtGui import QIcon, QCursor
 from PyQt6.QtCore import QSize, Qt
 from pathlib import Path
 
+def add_button_func(text, icon_name, slot, layout, icons, tooltip=None):
+    button = QPushButton(text)
+    icon = icons.get(icon_name)
+    if icon:
+        button.setIcon(icon)
+
+    button.setIconSize(QSize(30, 30))
+    
+    # Aplicando o CSS para o estilo do botão
+    button.setStyleSheet("""
+        QPushButton {
+            background-color: #181928;
+            color: #8AB4F7;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+        QPushButton:hover {
+            background-color: #2C2F3F;
+            color: #FFFFFF;
+        }
+    """)
+
+
+    if tooltip:
+        button.setToolTip(tooltip)
+
+    button.clicked.connect(slot)
+
+    layout.addWidget(button)
+
+    return button
+
+
 def add_button(label, icon_name, signal, layout, icons, tooltip=None):
     """
     Cria e adiciona um botão a um layout com o ícone e sinal fornecidos,

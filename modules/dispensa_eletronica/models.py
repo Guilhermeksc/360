@@ -1,4 +1,4 @@
-from modules.dispensa_eletronica.utils.db_manager import DatabaseManager
+from modules.dispensa_eletronica.database_manager.db_manager import DatabaseManager
 from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
@@ -66,6 +66,7 @@ class DispensaEletronicaModel(QObject):
                 ordenador_despesas TEXT,
                 agente_fiscal TEXT,
                 gerente_de_credito TEXT,
+                cp TEXT,
                 cod_par TEXT,
                 prioridade_par TEXT,
                 cep TEXT,
@@ -106,45 +107,80 @@ class DispensaEletronicaModel(QObject):
     def get_data(self, table_name):
         """Retorna todos os dados da tabela especificada."""
         return self.database_manager.fetch_all(f"SELECT * FROM {table_name}")
-    
+        
     def insert_or_update_data(self, data):
-        """Insere ou atualiza dados na tabela 'controle_dispensas'."""
+        print("Dados recebidos para salvar:", data)
         upsert_sql = '''
         INSERT INTO controle_dispensas (
-            situacao, id_processo, tipo, numero, ano, nup, material_servico, 
-            objeto, uasg, sigla_om, setor_responsavel, 
-            orgao_responsavel, data_sessao, operador, 
-            criterio_julgamento, com_disputa, pesquisa_preco, previsao_contratacao, 
-            responsavel_pela_demanda, ordenador_despesas, agente_fiscal, gerente_de_credito,
-            cod_par, prioridade_par, cep, endereco, email, telefone, dias_para_recebimento,
-            horario_para_recebimento, valor_total, acao_interna, fonte_recursos, natureza_despesa,
-            unidade_orcamentaria, ptres
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            situacao, 
+            id_processo, 
+            tipo, 
+            numero, 
+            ano, 
+            nup, 
+            material_servico, 
+            objeto,
+            vigencia,             
+            uasg, 
+            orgao_responsavel,
+            sigla_om,  
+            setor_responsavel, 
+            data_sessao, 
+            operador, 
+            criterio_julgamento, 
+            com_disputa, 
+            pesquisa_preco, 
+            atividade_custeio,
+            previsao_contratacao, 
+            responsavel_pela_demanda, 
+            ordenador_despesas, 
+            agente_fiscal, 
+            gerente_de_credito,
+            cp,
+            cod_par, 
+            prioridade_par,
+            justificativa, 
+            cep, 
+            endereco, 
+            email, 
+            telefone, 
+            dias_para_recebimento,
+            horario_para_recebimento, 
+            valor_total, 
+            acao_interna, 
+            fonte_recursos, 
+            natureza_despesa,
+            unidade_orcamentaria, 
+            ptres
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id_processo) DO UPDATE SET
-            nup=excluded.nup,
-            objeto=excluded.objeto,
-            uasg=excluded.uasg,
+            situacao=excluded.situacao,
             tipo=excluded.tipo,
             numero=excluded.numero,
             ano=excluded.ano,
+            nup=excluded.nup,
+            material_servico=excluded.material_servico,
+            objeto=excluded.objeto,
+            vigencia=excluded.vigencia,
+            uasg=excluded.uasg,      
+            orgao_responsavel=excluded.orgao_responsavel,                  
             sigla_om=excluded.sigla_om,
             setor_responsavel=excluded.setor_responsavel,
-            material_servico=excluded.material_servico,
-            orgao_responsavel=excluded.orgao_responsavel,
-            situacao=excluded.situacao,
             data_sessao=excluded.data_sessao,
             operador=excluded.operador,
             criterio_julgamento=excluded.criterio_julgamento,
             com_disputa=excluded.com_disputa,
             pesquisa_preco=excluded.pesquisa_preco,
+            atividade_custeio=excluded.atividade_custeio,
             previsao_contratacao=excluded.previsao_contratacao,
             responsavel_pela_demanda=excluded.responsavel_pela_demanda, 
             ordenador_despesas=excluded.ordenador_despesas, 
             agente_fiscal=excluded.agente_fiscal, 
             gerente_de_credito=excluded.gerente_de_credito,
+            cp=excluded.cp,
             cod_par=excluded.cod_par, 
             prioridade_par=excluded.prioridade_par, 
+            justificativa=excluded.justificativa,
             cep=excluded.cep, 
             endereco=excluded.endereco, 
             email=excluded.email, 
@@ -161,30 +197,57 @@ class DispensaEletronicaModel(QObject):
 
         # Verifica se 'situacao' está dentro dos valores válidos
         valid_situations = ["Planejamento", "Aprovado", "Sessão Pública", "Homologado", "Empenhado", "Concluído", "Arquivado"]
-        data['situacao'] = data['situacao'] if data['situacao'] in valid_situations else 'Planejamento'
+        data['situacao'] = data.get('situacao', 'Planejamento')
+        if data['situacao'] not in valid_situations:
+            data['situacao'] = 'Planejamento'
 
         # Executa a inserção ou atualização
         with self.database_manager as conn:
             cursor = conn.cursor()
             cursor.execute(upsert_sql, (
-                data.get('id_processo'), data.get('nup'), data.get('objeto'), data.get('uasg'),
-                data.get('tipo'), data.get('numero'), data.get('ano'),
-                data.get('sigla_om'), data.get('setor_responsavel', ''), 
-                data.get('material_servico'), data.get('orgao_responsavel'), data.get('situacao'),
-                data.get('data_sessao', None), data.get('operador', ''),
-                data.get('criterio_julgamento', ''), data.get('com_disputa', 0),
-                data.get('pesquisa_preco', 0), data.get('previsao_contratacao', None), 
-                data.get('responsavel_pela_demanda', None), data.get('ordenador_despesas', None), 
-                data.get('agente_fiscal', None), data.get('gerente_de_credito', None), 
-                data.get('cod_par', None), data.get('prioridade_par', None), 
-                data.get('cep', None), data.get('endereco', None), 
-                data.get('email', None), data.get('telefone', None), 
-                data.get('dias_para_recebimento', None), data.get('horario_para_recebimento', None),
-                data.get('valor_total', None), data.get('acao_interna', None), 
-                data.get('fonte_recursos', None), data.get('natureza_despesa', None),  
-                data.get('unidade_orcamentaria', None), data.get('ptres', None),
+                data.get('situacao'), 
+                data.get('id_processo'), 
+                data.get('tipo'), 
+                data.get('numero'), 
+                data.get('ano'),
+                data.get('nup'),
+                data.get('material_servico'),                  
+                data.get('objeto'),
+                data.get('vigencia', '2 (dois) meses'),
+                data.get('uasg'),
+                data.get('orgao_responsavel'),
+                data.get('sigla_om'), 
+                data.get('setor_responsavel', ''), 
+                data.get('data_sessao', None), 
+                data.get('operador', ''),
+                data.get('criterio_julgamento', ''), 
+                data.get('com_disputa'),
+                data.get('pesquisa_preco'), 
+                data.get('atividade_custeio'),
+                data.get('previsao_contratacao', None),
+                data.get('responsavel_pela_demanda', None), 
+                data.get('ordenador_despesas', None), 
+                data.get('agente_fiscal', None), 
+                data.get('gerente_de_credito', None), 
+                data.get('cp', None),
+                data.get('cod_par', None), 
+                data.get('prioridade_par', None), 
+                data.get('justificativa', None),
+                data.get('cep', None), 
+                data.get('endereco', None), 
+                data.get('email', None), 
+                data.get('telefone', None), 
+                data.get('dias_recebimento', None), 
+                data.get('horario_recebimento', None),
+                data.get('valor_total', None), 
+                data.get('acao_interna', None), 
+                data.get('fonte_recursos', None), 
+                data.get('natureza_despesa', None),  
+                data.get('unidade_orcamentaria', None), 
+                data.get('ptres', None)
             ))
             conn.commit()
+
 
     def delete_data(self, id_processo):
         """Exclui um registro da tabela 'controle_dispensas' pelo id_processo."""
@@ -205,7 +268,7 @@ class CustomSqlTableModel(QSqlTableModel):
             "objeto", "vigencia", "data_sessao", "operador", "criterio_julgamento", 
             "com_disputa", "pesquisa_preco", "previsao_contratacao", "uasg", 
             "orgao_responsavel", "sigla_om", "setor_responsavel", "responsavel_pela_demanda", 
-            "ordenador_despesas", "agente_fiscal", "gerente_de_credito", "cod_par", 
+            "ordenador_despesas", "agente_fiscal", "gerente_de_credito", "cp", "cod_par", 
             "prioridade_par", "cep", "endereco", "email", "telefone", 
             "dias_para_recebimento", "horario_para_recebimento", "valor_total", 
             "acao_interna", "fonte_recursos", "natureza_despesa", "unidade_orcamentaria", 

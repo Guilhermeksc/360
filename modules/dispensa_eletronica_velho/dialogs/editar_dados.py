@@ -374,21 +374,6 @@ class EditDataDialog(QDialog):
         group_box.setLayout(layout)
         return group_box
 
-
-    def save_data(self):
-        """Salva os dados editados e emite o sinal de atualização."""
-        # Obtém os novos valores dos campos
-        new_values = [field.text() for field in self.fields.values()]
-        
-        # Validação dos dados antes de atualizar
-        if self.validate_data(new_values):
-            # Atualiza os dados na linha selecionada
-            self.registro_selecionado[:] = new_values
-            self.dados_atualizados.emit()  # Emite o sinal para atualizar o modelo
-            self.accept()  # Fecha o diálogo
-        else:
-            QMessageBox.warning(self, "Erro", "Verifique os valores inseridos.")
-
     def validate_data(self, data):
         """Valida os dados antes de salvar."""
         # Implementar regras de validação conforme necessário
