@@ -37,7 +37,7 @@ def create_contratacao_group(data):
     contratacao_layout.addLayout(nup_layout)
 
     # Layout para Vigência e Critério de Julgamento
-    vigencia_criterio_layout = QHBoxLayout()
+    vigencia_layout = QHBoxLayout()
 
     # Vigência ComboBox
     vigencia_label = QLabel("Vigência:")
@@ -53,9 +53,11 @@ def create_contratacao_group(data):
     vigencia_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
     # Adiciona Vigência ao layout
-    vigencia_criterio_layout.addWidget(vigencia_label)
-    vigencia_criterio_layout.addWidget(vigencia_combo)
-
+    vigencia_layout.addWidget(vigencia_label)
+    vigencia_layout.addWidget(vigencia_combo)
+    contratacao_layout.addLayout(vigencia_layout)
+    
+    criterio_layout = QHBoxLayout()
     # Critério de Julgamento ComboBox
     criterio_label = QLabel("Critério Julgamento:")
     criterio_combo = QComboBox()
@@ -67,11 +69,11 @@ def create_contratacao_group(data):
     criterio_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
     # Adiciona Critério de Julgamento ao layout
-    vigencia_criterio_layout.addWidget(criterio_label)
-    vigencia_criterio_layout.addWidget(criterio_combo)
+    criterio_layout.addWidget(criterio_label)
+    criterio_layout.addWidget(criterio_combo)
 
     # Adiciona o layout ao layout principal de contratação
-    contratacao_layout.addLayout(vigencia_criterio_layout)
+    contratacao_layout.addLayout(criterio_layout)
 
     # Material e Serviço com seleção exclusiva usando RadioButtons
     material_servico_layout = QHBoxLayout()
@@ -133,25 +135,6 @@ def create_contratacao_group(data):
     pesquisa_layout.addWidget(radio_pesquisa_nao)
     contratacao_layout.addLayout(pesquisa_layout)
 
-    # Atividade de Custeio
-    custeio_layout = QHBoxLayout()
-    custeio_label = QLabel("Atividade de Custeio?")
-    radio_custeio_sim = QRadioButton("Sim")
-    radio_custeio_nao = QRadioButton("Não")
-    custeio_group = QButtonGroup()  # Grupo exclusivo para este conjunto
-    custeio_group.addButton(radio_custeio_sim)
-    custeio_group.addButton(radio_custeio_nao)
-
-    # Define o estado inicial com base nos dados, considerando ambos os botões
-    atividade_custeio_value = data.get('atividade_custeio', 'Não')
-    radio_custeio_sim.setChecked(atividade_custeio_value == 'Sim')
-    radio_custeio_nao.setChecked(atividade_custeio_value == 'Não')
-
-    custeio_layout.addWidget(custeio_label)
-    custeio_layout.addWidget(radio_custeio_sim)
-    custeio_layout.addWidget(radio_custeio_nao)
-    contratacao_layout.addLayout(custeio_layout)
-
     # Configura layout do GroupBox
     contratacao_group_box.setLayout(contratacao_layout)
 
@@ -167,12 +150,9 @@ def create_contratacao_group(data):
         'radio_disputa_nao': radio_disputa_nao,
         'radio_pesquisa_sim': radio_pesquisa_sim,
         'radio_pesquisa_nao': radio_pesquisa_nao,
-        'radio_custeio_sim': radio_custeio_sim,
-        'radio_custeio_nao': radio_custeio_nao,
         'material_servico_group': material_servico_group,
         'disputa_group': disputa_group,
         'pesquisa_group': pesquisa_group,
-        'custeio_group': custeio_group,
     }
     
     return contratacao_group_box, widgets

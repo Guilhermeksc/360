@@ -4,18 +4,35 @@ from PyQt6.QtCore import *
 from modules.utils.add_button import add_button, add_button_func
 from modules.utils.consulta_api import setup_consulta_api
 from modules.dispensa_eletronica.dialogs.edit_data.widgets.formulario import setup_formularios
+from modules.dispensa_eletronica.dialogs.edit_data.widgets.gerar_documentos import ConsolidarDocumentos
+from modules.dispensa_eletronica.dialogs.edit_data.widgets.sigdem_layout import create_GrupoSIGDEM, create_utilidades_group
 from modules.dispensa_eletronica.dialogs.edit_data.widgets.setor_responsavel import create_dados_responsavel_contratacao_group
 from modules.dispensa_eletronica.dialogs.edit_data.widgets.contratacao import create_contratacao_group, create_info_comprasnet
 from modules.dispensa_eletronica.dialogs.edit_data.widgets.classificacao_orcamentaria import create_classificacao_orcamentaria_group
 from modules.utils.linha_layout import linha_divisoria_layout
 from modules.utils.select_om import create_selecao_om_layout, load_sigla_om, on_om_changed
 from modules.utils.agentes_responsaveis_layout import create_agentes_responsaveis_layout
-
+from pathlib import Path
 from config.paths import CONTROLE_DADOS
+import json
+
+CONFIG_FILE = 'config.json'
+
+def load_config_path_id():
+    if not Path(CONFIG_FILE).exists():
+        return {}
+    with open(CONFIG_FILE, 'r') as file:
+        return json.load(file)
+
+def save_config(config):
+    with open(CONFIG_FILE, 'w') as file:
+        json.dump(config, file)
+
 
 class EditarDadosWindow(QMainWindow):
     save_data_signal = pyqtSignal(dict)
     sinalFormulario = pyqtSignal()
+    status_atualizado = pyqtSignal(str, str)
 
     """Classe para a janela de edição de dados."""
     def __init__(self, dados, icons, parent=None):
@@ -42,108 +59,93 @@ class EditarDadosWindow(QMainWindow):
         # Configurações da janela
         self.setWindowTitle("Editar Dados")
         self.setWindowIcon(self.icons.get("edit", None))
-        self.setFixedSize(1250, 780)
+        self.setFixedSize(1150, 780)
         
         self.database_path = CONTROLE_DADOS
+        # Inicialize a instância de consolidador
+        self.status_label = QLabel(self)
+        self.config = load_config_path_id()
+        self.pasta_base = Path(self.config.get('pasta_base', str(Path.home() / 'Desktop')))
+        # Inicialize a instância de ConsolidarDocumentos e conecte o sinal
+        self.consolidador = ConsolidarDocumentos(self.dados)
+        self.consolidador.status_atualizado.connect(self.atualizar_status)
+
         self.setup_ui()
 
-    def save_data(self):
-        # Coleta os dados dos widgets de contratação
-        data_to_save = {
-            'id_processo': self.dados.get('id_processo'),
-            'tipo': self.dados.get('tipo'),
-            'numero': self.dados.get('numero'),
-            'ano': self.dados.get('ano'),
-            'objeto': self.contratacao_widgets['objeto_edit'].text(),
-            'nup': self.contratacao_widgets['nup_edit'].text(),
-            'material_servico': 'Material' if self.contratacao_widgets['radio_material'].isChecked() else 'Serviço',
-            'vigencia': self.contratacao_widgets['vigencia_combo'].currentText(),
-            'criterio_julgamento': self.contratacao_widgets['criterio_combo'].currentText(),
-            'com_disputa': 'Sim' if self.contratacao_widgets['radio_disputa_sim'].isChecked() else 'Não',
-            'pesquisa_preco': 'Sim' if self.contratacao_widgets['radio_pesquisa_sim'].isChecked() else 'Não',
-            'atividade_custeio': 'Sim' if self.contratacao_widgets['radio_custeio_sim'].isChecked() else 'Não',
-        }
-        
-        # Coleta os dados dos widgets de classificação orçamentária
-        data_to_save.update({
-            'valor_total': self.widgets_classificacao_orcamentaria['valor_total'].text(),
-            'acao_interna': self.widgets_classificacao_orcamentaria['acao_interna'].text(),
-            'fonte_recursos': self.widgets_classificacao_orcamentaria['fonte_recursos'].text(),
-            'natureza_despesa': self.widgets_classificacao_orcamentaria['natureza_despesa'].text(),
-            'unidade_orcamentaria': self.widgets_classificacao_orcamentaria['unidade_orcamentaria'].text(),
-            'ptres': self.widgets_classificacao_orcamentaria['ptres'].text()
-        })
 
-        data_to_save.update({
-            'cp': self.widget_setor_responsavel['cp_edit'].text(),
-            'cod_par': self.widget_setor_responsavel['par_edit'].text(),
-            'prioridade_par': self.widget_setor_responsavel['prioridade_combo'].currentText(),
-            'endereco': self.widget_setor_responsavel['endereco_edit'].text(),
-            'cep': self.widget_setor_responsavel['cep_edit'].text(),
-            'email': self.widget_setor_responsavel['email_edit'].text(),
-            'telefone': self.widget_setor_responsavel['telefone_edit'].text(),
-            'dias_recebimento': self.widget_setor_responsavel['dias_edit'].text(),
-            'horario_recebimento': self.widget_setor_responsavel['horario_edit'].text(),
-            'justificativa': self.widget_setor_responsavel['justificativa_edit'].toPlainText()
-        })
+    def atualizar_status(self, status_texto, icone_path):
+        """Atualiza o texto e o ícone do status_label"""
+        # Print para verificar a recepção do sinal
+        print(f"Received signal in atualizar_status with status_texto: '{status_texto}', icone_path: '{icone_path}'")
         
-        # Debug para verificar o conteúdo de data_to_save
-        print("Dados para salvar:", data_to_save)
-
-        # Emissão do sinal para salvar os dados
-        self.save_data_signal.emit(data_to_save)
+        self.status_label.setText(status_texto)
+        icon_folder = QIcon(icone_path)
+        icon_pixmap = icon_folder.pixmap(30, 30)
+        self.icon_label.setPixmap(icon_pixmap)  # Atualiza o pixmap do ícone
 
     def setup_ui(self):
         # Configura o widget principal e define o fundo preto e borda
         main_widget = QWidget(self)
-
         self.setCentralWidget(main_widget)
 
         # Configuração do layout principal com margens e espaçamento zero
         self.central_layout = QHBoxLayout(main_widget)
-        # self.central_layout.setSpacing(0)
-        # self.central_layout.setContentsMargins(0, 0, 0, 0)
 
         # Layout esquerdo
         Left_layout = QVBoxLayout()
-        
-        # Adiciona título e navegação
         layout_titulo = self.setup_layout_titulo()
         Left_layout.addLayout(layout_titulo)
-        
         nav_frame = self.create_navigation_layout()
         Left_layout.addWidget(nav_frame)
-
-        # Adiciona o QStackedWidget abaixo do layout de navegação
         Left_layout.addWidget(self.stacked_widget)
-        
         self.central_layout.addLayout(Left_layout)
 
         # Configura o layout da consulta API
         group_box_consulta_api, self.cnpj_edit, self.sequencial_edit = setup_consulta_api(parent=self, icons=self.icons)
-        
         group_box_agentes = create_agentes_responsaveis_layout(self.database_path)
-
-        group_box_sessao =  self.create_sessao_publica_group()
+        group_box_sessao = self.create_sessao_publica_group()
 
         # Cria um widget para o Right_layout e define o fundo preto
         right_widget = QWidget()
         right_widget.setStyleSheet("""
-            background-color: #12131D;;
-            border: 2px solid #12131D;;
+            background-color: #12131D;
+            border: 2px solid #12131D;
             border-radius: 15px;
         """)
-        # Adiciona os widgets ao layout de fundo preto
         Right_layout = QVBoxLayout(right_widget)
         Right_layout.addWidget(group_box_consulta_api)
         Right_layout.addWidget(group_box_agentes)
         Right_layout.addWidget(group_box_sessao)
 
-        # Adiciona o right_widget ao layout central
         self.central_layout.addWidget(right_widget)
 
         # Configuração dos widgets no QStackedWidget
         self.setup_stacked_widgets()
+
+    def verificar_pastas(self, pasta_base):
+        # Acesse o id_processo a partir de self.dados
+        id_processo = self.dados.get('id_processo', 'desconhecido').replace("/", "-")  # Use uma chave de dicionário
+        objeto = self.dados.get('objeto', 'objeto_desconhecido').replace("/", "-")  # Acessando corretamente o objeto
+
+        base_path = pasta_base / f'{id_processo} - {objeto}'
+
+        pastas_necessarias = [
+            base_path / '1. Autorizacao',
+            base_path / '2. CP e anexos',
+            base_path / '3. Aviso',
+            base_path / '2. CP e anexos' / 'DFD',
+            base_path / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin',
+            base_path / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade',
+            base_path / '2. CP e anexos' / 'TR',
+            base_path / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços',
+            base_path / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária',
+            base_path / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser',
+            base_path / '2. CP e anexos' / 'Justificativas Relevantes',
+        ]
+
+        # Verifica se todas as pastas necessárias existem
+        pastas_existentes = all(pasta.exists() for pasta in pastas_necessarias)
+        return pastas_existentes
 
     def create_navigation_layout(self):
         # Criação do frame que conterá o nav_layout e aplicará a borda inferior
@@ -176,8 +178,25 @@ class EditarDadosWindow(QMainWindow):
                 button.setStyleSheet("")  # Aplica o estilo imediatamente
                 self.selected_button = button  # Mantém o botão "Informações" como o selecionado inicial
 
-        # Adiciona um espaço expansivo no final para empurrar os botões para a esquerda
         nav_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+
+        # Verifica se as pastas existem e define o ícone e status
+        pastas_existentes = self.verificar_pastas(self.pasta_base)
+        status_text = "Pastas encontradas" if pastas_existentes else "Pastas não encontradas"
+        icon_key = "folder_v" if pastas_existentes else "folder_x"
+        icon = self.icons.get(icon_key)
+        self.status_label = QLabel(status_text)
+        self.icon_label = QLabel()
+        if icon and isinstance(icon, QIcon):
+            icon_pixmap = icon.pixmap(30, 30)
+            self.icon_label.setPixmap(icon_pixmap)
+
+        # Layout de status com ícone e texto
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(self.icon_label)
+        status_layout.addWidget(self.status_label)
+        status_layout.addStretch()
+        nav_layout.addLayout(status_layout)
 
         # Define o estilo para os botões dentro do nav_layout
         self.setStyleSheet("""
@@ -282,11 +301,41 @@ class EditarDadosWindow(QMainWindow):
     def stacked_widget_documentos(self, data):
         frame = QFrame()
         layout = QVBoxLayout()
-        label = QLabel("Conteúdo de Documentos")
-        layout.addWidget(label)
+
+        # Configuração de parâmetros
+        nome_pasta = f"{self.consolidador.id_processo.replace('/', '-')}_{self.consolidador.objeto.replace('/', '-')}"
+        icons_dir = self.consolidador.ICONS_DIR
+        criar_e_abrir_pasta = self.consolidador.criar_e_abrir_pasta
+        alterar_diretorio_base = self.consolidador.alterar_diretorio_base
+        editar_modelo = self.consolidador.editar_modelo
+
+        # Chama `create_gerar_documentos_group` sem passar o parâmetro `consolidador`
+        self.gerar_documentos = self.consolidador.create_gerar_documentos_group(
+            handle_gerar_autorizacao=self.consolidador.gerar_autorizacao,
+            handle_gerar_autorizacao_sidgem=None,  # Removido ou definido como None
+            handle_gerar_comunicacao_padronizada=self.consolidador.gerar_comunicacao_padronizada,
+            handle_gerar_comunicacao_padronizada_sidgem=None,  # Removido ou definido como None
+            handle_gerar_aviso_dispensa=self.consolidador.gerar_aviso_dispensa,
+            handle_gerar_aviso_dispensa_sidgem=None  # Removido ou definido como None
+        )
+        self.sigdem_group = create_GrupoSIGDEM(self.dados)
+
+        self.utilidade_group = create_utilidades_group(
+            pasta_base=self.pasta_base,
+            nome_pasta=nome_pasta,
+            icons_dir=icons_dir,
+            criar_e_abrir_pasta=criar_e_abrir_pasta,
+            alterar_diretorio_base=alterar_diretorio_base,
+            editar_modelo=editar_modelo
+        )
+
+        # Adiciona o layout gerado ao layout principal
+        layout.addLayout(self.gerar_documentos)
+        layout.addWidget(self.sigdem_group)
+        layout.addLayout(self.utilidade_group)
         frame.setLayout(layout)
         return frame
-
+    
     def stacked_widget_anexos(self, data):
         frame = QFrame()
         layout = QVBoxLayout()
@@ -481,3 +530,51 @@ class EditarDadosWindow(QMainWindow):
         layout_conteudo.addLayout(agentes_responsaveis_layout)
         
         return layout_conteudo
+
+            
+    def save_data(self):
+        # Coleta os dados dos widgets de contratação
+        data_to_save = {
+            'id_processo': self.dados.get('id_processo'),
+            'tipo': self.dados.get('tipo'),
+            'numero': self.dados.get('numero'),
+            'ano': self.dados.get('ano'),
+            'objeto': self.contratacao_widgets['objeto_edit'].text(),
+            'nup': self.contratacao_widgets['nup_edit'].text(),
+            'material_servico': 'Material' if self.contratacao_widgets['radio_material'].isChecked() else 'Serviço',
+            'vigencia': self.contratacao_widgets['vigencia_combo'].currentText(),
+            'criterio_julgamento': self.contratacao_widgets['criterio_combo'].currentText(),
+            'com_disputa': 'Sim' if self.contratacao_widgets['radio_disputa_sim'].isChecked() else 'Não',
+            'pesquisa_preco': 'Sim' if self.contratacao_widgets['radio_pesquisa_sim'].isChecked() else 'Não'
+        }
+        
+        # Coleta os dados dos widgets de classificação orçamentária
+        data_to_save.update({
+            'valor_total': self.widgets_classificacao_orcamentaria['valor_total'].text(),
+            'acao_interna': self.widgets_classificacao_orcamentaria['acao_interna'].text(),
+            'fonte_recursos': self.widgets_classificacao_orcamentaria['fonte_recursos'].text(),
+            'natureza_despesa': self.widgets_classificacao_orcamentaria['natureza_despesa'].text(),
+            'unidade_orcamentaria': self.widgets_classificacao_orcamentaria['unidade_orcamentaria'].text(),
+            'ptres': self.widgets_classificacao_orcamentaria['ptres'].text(),
+            'atividade_custeio': 'Sim' if self.widgets_classificacao_orcamentaria['radio_custeio_sim'].isChecked() else 'Não'
+        })
+
+        data_to_save.update({
+            'cp': self.widget_setor_responsavel['cp_edit'].text(),
+            'cod_par': self.widget_setor_responsavel['par_edit'].text(),
+            'prioridade_par': self.widget_setor_responsavel['prioridade_combo'].currentText(),
+            'endereco': self.widget_setor_responsavel['endereco_edit'].text(),
+            'cep': self.widget_setor_responsavel['cep_edit'].text(),
+            'email': self.widget_setor_responsavel['email_edit'].text(),
+            'telefone': self.widget_setor_responsavel['telefone_edit'].text(),
+            'dias_recebimento': self.widget_setor_responsavel['dias_edit'].text(),
+            'horario_recebimento': self.widget_setor_responsavel['horario_edit'].text(),
+            'justificativa': self.widget_setor_responsavel['justificativa_edit'].toPlainText()
+        })
+        
+        # Debug para verificar o conteúdo de data_to_save
+        print("Dados para salvar:", data_to_save)
+
+        # Emissão do sinal para salvar os dados
+        self.save_data_signal.emit(data_to_save)
+        

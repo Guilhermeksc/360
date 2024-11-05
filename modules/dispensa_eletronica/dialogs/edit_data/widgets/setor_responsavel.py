@@ -14,14 +14,11 @@ def create_dados_responsavel_contratacao_group(data):
 
     # Par, Prioridade e CP
     par_edit = QLineEdit(str(data.get('cod_par', '')))
-    par_edit.setFixedWidth(50)
     prioridade_combo = QComboBox()
     prioridade_combo.addItems(["Necessário", "Urgente", "Desejável"])
-    prioridade_combo.setFixedWidth(110)
     prioridade_combo.setCurrentText(data.get('prioridade_par', 'Necessário'))
 
     cp_edit = QLineEdit(data.get('cp', ''))
-    cp_edit.setFixedWidth(50)
 
     par_layout = QHBoxLayout()
     par_layout.addLayout(create_info_row("Número da CP:", cp_edit))
@@ -29,26 +26,26 @@ def create_dados_responsavel_contratacao_group(data):
     par_layout.addLayout(create_info_row("Prioridade:", prioridade_combo))
     layout.addLayout(par_layout)
 
-    # Endereço e CEP
+    # Endereço
     endereco_edit = QLineEdit(data.get('endereco', ''))
-    endereco_edit.setFixedWidth(350)
-    cep_edit = QLineEdit(str(data.get('cep', '')))
-
     endereco_cep_layout = QHBoxLayout()
     endereco_cep_layout.addLayout(create_info_row("Endereço:", endereco_edit))
-    endereco_cep_layout.addLayout(create_info_row("CEP:", cep_edit))
     layout.addLayout(endereco_cep_layout)
 
-    # E-mail e Telefone
+    # E-mail
     email_edit = QLineEdit(data.get('email', ''))
-    email_edit.setFixedWidth(400)
+    email_layout = QHBoxLayout()
+    email_layout.addLayout(create_info_row("E-mail:", email_edit))
+    layout.addLayout(email_layout)
+
+    # CEP e Telefone
+    cep_telefone_layout = QHBoxLayout()
+    cep_edit = QLineEdit(str(data.get('cep', '')))
+    cep_telefone_layout.addLayout(create_info_row("CEP:", cep_edit))
     telefone_edit = QLineEdit(data.get('telefone', ''))
-
-    email_telefone_layout = QHBoxLayout()
-    email_telefone_layout.addLayout(create_info_row("E-mail:", email_edit))
-    email_telefone_layout.addLayout(create_info_row("Tel:", telefone_edit))
-    layout.addLayout(email_telefone_layout)
-
+    cep_telefone_layout.addLayout(create_info_row("Telefone:", telefone_edit))
+    layout.addLayout(cep_telefone_layout)
+    
     # Dias e Horário para Recebimento
     dias_edit = QLineEdit(data.get("dias_recebimento", "Segunda à Sexta"))
     horario_edit = QLineEdit(data.get("horario_recebimento", "09 às 11h20 e 14 às 16h30"))

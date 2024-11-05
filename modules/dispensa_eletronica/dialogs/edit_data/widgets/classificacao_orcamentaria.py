@@ -44,7 +44,32 @@ def create_classificacao_orcamentaria_group(data):
 
         # Armazena o widget no dicionário
         widgets_classificacao_orcamentaria[key] = widget
+
+    # Adicionando o rádio button de Atividade de Custeio
+    custeio_layout = QHBoxLayout()
+    custeio_label = QLabel("Atividade de Custeio?")
+    radio_custeio_sim = QRadioButton("Sim")
+    radio_custeio_nao = QRadioButton("Não")
+    custeio_group = QButtonGroup()  # Grupo exclusivo para o conjunto de botões
+    custeio_group.addButton(radio_custeio_sim)
+    custeio_group.addButton(radio_custeio_nao)
+
+    # Define o estado inicial com base nos dados
+    atividade_custeio_value = data.get('atividade_custeio', 'Não')
+    radio_custeio_sim.setChecked(atividade_custeio_value == 'Sim')
+    radio_custeio_nao.setChecked(atividade_custeio_value == 'Não')
+
+    custeio_layout.addWidget(custeio_label)
+    custeio_layout.addWidget(radio_custeio_sim)
+    custeio_layout.addWidget(radio_custeio_nao)
     
+    # Adiciona o layout do rádio button ao layout principal
+    layout.addLayout(custeio_layout)
+
+    # Armazena cada botão de rádio separadamente no dicionário
+    widgets_classificacao_orcamentaria['radio_custeio_sim'] = radio_custeio_sim
+    widgets_classificacao_orcamentaria['radio_custeio_nao'] = radio_custeio_nao
+
     classificacao_orcamentaria_group_box.setLayout(layout)
     
     return classificacao_orcamentaria_group_box, widgets_classificacao_orcamentaria

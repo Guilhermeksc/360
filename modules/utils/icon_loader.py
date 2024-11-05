@@ -61,4 +61,6 @@ def load_icons():
         "excel_down": load_icon("excel_down.png"),
         "excel_up": load_icon("excel_up.png"),
         "acanto": load_icon("acanto.png"),
+        "folder_v": load_icon("folder_v.png"),
+        "folder_x": load_icon("folder_x.png"),
                 }
