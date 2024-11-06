@@ -14,6 +14,7 @@ class DispensaEletronicaController(QObject):
     def __init__(self, view, model):
         super().__init__()
         self.view = view
+        self.edit_data_dialog = None
         self.model = model
         self.database_path = model.database_manager.db_path
         self.setup_connections()
@@ -79,9 +80,14 @@ class DispensaEletronicaController(QObject):
         self.view.model.select()  # Recarrega os dados no modelo
 
     def handle_edit_item(self, data):
-        dialog = EditarDadosWindow(data, self.view.icons, self.view)
-        dialog.save_data_signal.connect(self.handle_save_data)
-        dialog.show()
+        # Verifica se a janela já foi criada; caso contrário, cria uma nova
+        if not self.edit_data_dialog:
+            self.edit_data_dialog = EditarDadosWindow(data, self.view.icons, self.view)
+            self.edit_data_dialog.save_data_signal.connect(self.handle_save_data)
+        
+        # Atualiza os dados caso seja necessário ao reabrir
+        self.edit_data_dialog.dados = data  
+        self.edit_data_dialog.show()
     
     def handle_save_data(self, data):
         self.model.insert_or_update_data(data)

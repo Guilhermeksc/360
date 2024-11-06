@@ -2,19 +2,24 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 from modules.utils.add_button import add_button, add_button_func
-from modules.utils.consulta_api import setup_consulta_api
-from modules.dispensa_eletronica.dialogs.edit_data.widgets.formulario import setup_formularios
+from modules.dispensa_eletronica.dialogs.edit_data.widgets.consulta_api import setup_consulta_api
 from modules.dispensa_eletronica.dialogs.edit_data.widgets.gerar_documentos import ConsolidarDocumentos
 from modules.dispensa_eletronica.dialogs.edit_data.widgets.sigdem_layout import create_GrupoSIGDEM, create_utilidades_group
 from modules.dispensa_eletronica.dialogs.edit_data.widgets.setor_responsavel import create_dados_responsavel_contratacao_group
-from modules.dispensa_eletronica.dialogs.edit_data.widgets.contratacao import create_contratacao_group, create_info_comprasnet
-from modules.dispensa_eletronica.dialogs.edit_data.widgets.classificacao_orcamentaria import create_classificacao_orcamentaria_group
+from modules.dispensa_eletronica.dialogs.edit_data.widgets.contratacao import create_info_comprasnet
 from modules.utils.linha_layout import linha_divisoria_layout
 from modules.utils.select_om import create_selecao_om_layout, load_sigla_om, on_om_changed
 from modules.utils.agentes_responsaveis_layout import create_agentes_responsaveis_layout
 from pathlib import Path
 from config.paths import CONTROLE_DADOS
 import json
+import pandas as pd
+import os
+import subprocess
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, Border, Side, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
+from modules.utils.add_button import add_button, add_button_func
 
 CONFIG_FILE = 'config.json'
 
@@ -27,51 +32,230 @@ def load_config_path_id():
 def save_config(config):
     with open(CONFIG_FILE, 'w') as file:
         json.dump(config, file)
+from PyQt6.QtCore import QThread, pyqtSignal
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from pathlib import Path
+import os
+import subprocess
+
+def number_to_text(number):
+    numbers_in_words = ["um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "doze"]
+    return numbers_in_words[number - 1] 
+
+class TableCreationWorker(QThread):
+    # Sinal para indicar quando o arquivo foi salvo
+    file_saved = pyqtSignal(str)
+
+    def __init__(self, dados, colunas_legiveis, pasta_base):
+        super().__init__()
+        self.dados = dados
+        self.colunas_legiveis = colunas_legiveis
+        self.pasta_base = pasta_base
+
+    def run(self):
+        # Criando e salvando a tabela
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Formulário"
+        
+        # Adicionando título
+        tipo = self.dados.get('tipo', '')
+        numero = self.dados.get('numero', '')
+        ano = self.dados.get('ano', '')
+        objeto = self.dados.get('objeto', '')
+        titulo = f"{tipo} nº {numero}/{ano} ({objeto})"
+        ws.merge_cells('A1:B1')
+        ws['A1'] = titulo
+        ws['A1'].font = Font(size=20, bold=True)
+        ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 40
+
+        # Cabeçalhos
+        ws['A2'] = "Índice"
+        ws['B2'] = "Valor"
+        ws['A2'].font = Font(size=14, bold=True)
+        ws['B2'].font = Font(size=14, bold=True)
+        ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
+        ws['B2'].alignment = Alignment(horizontal='center', vertical='center')
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        ws['A2'].border = thin_border
+        ws['B2'].border = thin_border
+
+        # Ajuste de largura das colunas
+        ws.column_dimensions['A'].width = 50
+        ws.column_dimensions['B'].width = 80
+
+        # Preenchendo dados filtrados
+        for i, (key, label) in enumerate(self.colunas_legiveis.items(), start=3):
+            value = self.dados.get(key, '')  # Obtém o valor correspondente em `self.dados`
+            ws[f'A{i}'] = label
+            ws[f'B{i}'] = str(value)
+            ws[f'B{i}'].alignment = Alignment(wrap_text=True)
+            fill_color = "F2F2F2" if i % 2 == 0 else "FFFFFF"
+            fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
+            ws[f'A{i}'].fill = fill
+            ws[f'B{i}'].fill = fill
+            ws[f'A{i}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            ws.row_dimensions[i].height = 15
+
+            # Aplicando bordas finas a cada célula preenchida
+            for cell in [ws[f'A{i}'], ws[f'B{i}']]:
+                cell.border = thin_border
+
+        # Salvando arquivo e emitindo o sinal com o caminho
+        file_path = self.pasta_base / "formulario.xlsx"
+        wb.save(file_path)
+        self.file_saved.emit(str(file_path))  # Emite o sinal com o caminho do arquivo salvo
 
 
 class EditarDadosWindow(QMainWindow):
     save_data_signal = pyqtSignal(dict)
-    sinalFormulario = pyqtSignal()
     status_atualizado = pyqtSignal(str, str)
+    formulario_carregado = pyqtSignal(pd.DataFrame) 
 
-    """Classe para a janela de edição de dados."""
     def __init__(self, dados, icons, parent=None):
         super().__init__(parent)
         self.dados = dados
         self.icons = icons
-        self.selected_button = None
-        self.stacked_widget = QStackedWidget(self)        
-        # Define estilo para a fonte e borda do central_widget
-        self.stacked_widget.setStyleSheet("""
-            QLabel {
-                font-size: 16px;
-            }
-            QCheckBox {
-                font-size: 16px;
-            }
-            QLineEdit {
-                font-size: 14px;
-            }
-        """)
 
-        self.widgets_map = {}
-        
-        # Configurações da janela
+        # Configurações gerais da janela
         self.setWindowTitle("Editar Dados")
         self.setWindowIcon(self.icons.get("edit", None))
         self.setFixedSize(1150, 780)
+
+        # Configurações e widgets principais
+        self.selected_button = None
+        self.stacked_widget = QStackedWidget(self)
+        self.stacked_widget.setStyleSheet("""
+            QLabel { font-size: 16px; }
+            QCheckBox { font-size: 16px; }
+            QLineEdit { font-size: 14px; }
+        """)
+        self.widgets_map = {}
         
+        # Configurações de caminho e inicialização da base de dados
         self.database_path = CONTROLE_DADOS
-        # Inicialize a instância de consolidador
-        self.status_label = QLabel(self)
         self.config = load_config_path_id()
         self.pasta_base = Path(self.config.get('pasta_base', str(Path.home() / 'Desktop')))
-        # Inicialize a instância de ConsolidarDocumentos e conecte o sinal
+
+        # Consolidador de documentos
         self.consolidador = ConsolidarDocumentos(self.dados)
         self.consolidador.status_atualizado.connect(self.atualizar_status)
 
+        # Label de status para mostrar atualizações de consolidação
+        self.status_label = QLabel(self)
+
+        # Inicialização da interface gráfica e configuração da UI
         self.setup_ui()
 
+        self.colunas_legiveis = {
+            'nup': 'NUP',
+            'material_servico': 'Material (M) ou Serviço (S)',
+            'vigencia': 'Vigência (Ex: 2 (dois) meses, 6 (seis) meses), etc.',
+            'criterio_julgamento': 'Critério de Julgamento (Menor Preço ou Maior Desconto)',
+            'com_disputa': 'Com disputa? Sim (S) ou Não (N)',
+            'pesquisa_preco': 'Pesquisa Concomitante? Sim (S) ou Não (N)',
+            'sigla_om': 'OM',
+            'setor_responsavel': 'Setor Responsável',
+            'cod_par': 'Código PAR',
+            'prioridade_par': 'Prioridade PAR (Necessário, Urgente ou Desejável)',
+            'cep': 'CEP',
+            'endereco': 'Endereço',
+            'email': 'Email',
+            'telefone': 'Telefone',
+            'dias_para_recebimento': 'Dias para Recebimento',
+            'horario_para_recebimento': 'Horário para Recebimento',
+            'valor_total': 'Valor Total',
+            'acao_interna': 'Ação Interna',
+            'fonte_recursos': 'Fonte de Recursos',
+            'natureza_despesa': 'Natureza da Despesa',
+            'unidade_orcamentaria': 'Unidade Orçamentária',
+            'ptres': 'PTRES',
+            'atividade_custeio': 'Atividade de Custeio',
+            'justificativa': 'Justificativa',
+            'comunicacao_padronizada': 'Comunicação Padronizada (CP), Ex: 60-25',
+        }
+        
+        # Dicionário inverso para mapeamento reverso das colunas legíveis
+        self.colunas_legiveis_inverso = {v: k for k, v in self.colunas_legiveis.items()}
+
+        # Mapas de normalização de valores para campos específicos
+        self.normalizacao_valores = {
+            'material_servico': {
+                'M': 'Material', 'm': 'Material', 'Material': 'Material', 'material': 'Material',
+                'S': 'Serviço', 's': 'Serviço', 'Serviço': 'Serviço', 'serviço': 'Serviço',
+                'Servico': 'Serviço', 'servico': 'Serviço'
+            },
+            'com_disputa': {
+                'S': 'Sim', 's': 'Sim', 'Sim': 'Sim', 'sim': 'Sim',
+                'N': 'Não', 'n': 'Não', 'Não': 'Não', 'não': 'Não',
+                'Nao': 'Não', 'nao': 'Não'
+            },
+            'pesquisa_preco': {
+                'S': 'Sim', 's': 'Sim', 'Sim': 'Sim', 'sim': 'Sim',
+                'N': 'Não', 'n': 'Não', 'Não': 'Não', 'não': 'Não',
+                'Nao': 'Não', 'nao': 'Não'
+            },
+            'atividade_custeio': {
+                'S': 'Sim', 's': 'Sim', 'Sim': 'Sim', 'sim': 'Sim',
+                'N': 'Não', 'n': 'Não', 'Não': 'Não', 'não': 'Não',
+                'Nao': 'Não', 'nao': 'Não'
+            }
+        }            
+
+
+    def save_data(self):
+        # Coleta os dados dos widgets de contratação
+        data_to_save = {
+            'id_processo': self.dados.get('id_processo'),
+            'tipo': self.dados.get('tipo'),
+            'numero': self.dados.get('numero'),
+            'ano': self.dados.get('ano'),
+            'situacao': self.situacao_combo.currentText(),
+            'sigla_om': self.om_combo.currentText(),
+            'setor_responsavel': self.setor_responsavel_combo.currentText(),
+            'data_sessao': self.data_edit.date().toString("yyyy-MM-dd"),
+            'cnpj_matriz': self.cnpj_edit.text(),
+            'sequencial_pncp': self.sequencial_edit.text(),
+            'objeto': self.objeto_edit.text(),
+            'nup': self.nup_edit.text(),
+            # 'material_servico': 'Material' if self.contratacao_widgets['radio_material'].isChecked() else 'Serviço',
+            # 'vigencia': self.contratacao_widgets['vigencia_combo'].currentText(),
+            # 'criterio_julgamento': self.contratacao_widgets['criterio_combo'].currentText(),
+            # 'com_disputa': 'Sim' if self.contratacao_widgets['radio_disputa_sim'].isChecked() else 'Não',
+            # 'pesquisa_preco': 'Sim' if self.contratacao_widgets['radio_pesquisa_sim'].isChecked() else 'Não'
+        }
+        
+        # Coleta os dados dos widgets de classificação orçamentária
+        data_to_save.update({
+            'valor_total': self.valor_total_edit.text(),
+            'acao_interna': self.acao_interna_edit.text(),
+            'fonte_recursos': self.fonte_recursos_edit.text(),
+            'natureza_despesa': self.natureza_despesa_edit.text(),
+            'unidade_orcamentaria': self.unidade_orcamentaria_edit.text(),
+            'ptres': self.ptres_edit.text(),
+            'atividade_custeio': 'Sim' if self.radio_custeio_sim.isChecked() else 'Não'
+        })
+
+        data_to_save.update({
+            'cp': self.widget_setor_responsavel['cp_edit'].text(),
+            'cod_par': self.widget_setor_responsavel['par_edit'].text(),
+            'prioridade_par': self.widget_setor_responsavel['prioridade_combo'].currentText(),
+            'endereco': self.widget_setor_responsavel['endereco_edit'].text(),
+            'cep': self.widget_setor_responsavel['cep_edit'].text(),
+            'email': self.widget_setor_responsavel['email_edit'].text(),
+            'telefone': self.widget_setor_responsavel['telefone_edit'].text(),
+            'dias_recebimento': self.widget_setor_responsavel['dias_edit'].text(),
+            'horario_recebimento': self.widget_setor_responsavel['horario_edit'].text(),
+            'justificativa': self.widget_setor_responsavel['justificativa_edit'].toPlainText()
+        })
+        
+        # Debug para verificar o conteúdo de data_to_save
+        print("Dados para salvar:", data_to_save)
+
+        # Emissão do sinal para salvar os dados
+        self.save_data_signal.emit(data_to_save)
 
     def atualizar_status(self, status_texto, icone_path):
         """Atualiza o texto e o ícone do status_label"""
@@ -101,9 +285,9 @@ class EditarDadosWindow(QMainWindow):
         self.central_layout.addLayout(Left_layout)
 
         # Configura o layout da consulta API
-        group_box_consulta_api, self.cnpj_edit, self.sequencial_edit = setup_consulta_api(parent=self, icons=self.icons)
-        group_box_agentes = create_agentes_responsaveis_layout(self.database_path)
-        group_box_sessao = self.create_sessao_publica_group()
+        self.group_box_consulta_api, self.cnpj_edit, self.sequencial_edit = setup_consulta_api(parent=self, icons=self.icons, data=self.dados)
+        self.group_box_agentes = create_agentes_responsaveis_layout(self.database_path)
+        self.group_box_sessao = self.create_sessao_publica_group()
 
         # Cria um widget para o Right_layout e define o fundo preto
         right_widget = QWidget()
@@ -113,9 +297,9 @@ class EditarDadosWindow(QMainWindow):
             border-radius: 15px;
         """)
         Right_layout = QVBoxLayout(right_widget)
-        Right_layout.addWidget(group_box_consulta_api)
-        Right_layout.addWidget(group_box_agentes)
-        Right_layout.addWidget(group_box_sessao)
+        Right_layout.addWidget(self.group_box_consulta_api)
+        Right_layout.addWidget(self.group_box_agentes)
+        Right_layout.addWidget(self.group_box_sessao)
 
         self.central_layout.addWidget(right_widget)
 
@@ -264,23 +448,21 @@ class EditarDadosWindow(QMainWindow):
     def stacked_widget_info(self, data):
         frame = QFrame()
         layout = QVBoxLayout()
-
         hbox_top_layout = QHBoxLayout()
 
         info_contratacao_layout = QVBoxLayout()
-
-        self.contratacao_layout, self.contratacao_widgets = create_contratacao_group(self.dados)
-
+        self.contratacao_layout = self.create_contratacao_group()
         info_comprasnet_layout = create_info_comprasnet(data)
         info_contratacao_layout.addWidget(self.contratacao_layout)
         info_contratacao_layout.addWidget(info_comprasnet_layout)
 
         classificacao_orcamentaria_formulario_layout = QVBoxLayout()
-        self.classificacao_orcamentaria_group_box, self.widgets_classificacao_orcamentaria = create_classificacao_orcamentaria_group(self.dados)
+        self.classificacao_orcamentaria_group_box = self.create_classificacao_orcamentaria_group()
         
-        group_box_formulario = setup_formularios(parent=self, icons=self.icons)
+        self.group_box_formulario = self.setup_formularios()
+
         classificacao_orcamentaria_formulario_layout.addWidget(self.classificacao_orcamentaria_group_box)
-        classificacao_orcamentaria_formulario_layout.addWidget(group_box_formulario)
+        classificacao_orcamentaria_formulario_layout.addWidget(self.group_box_formulario)
 
         hbox_top_layout.addLayout(info_contratacao_layout)
         hbox_top_layout.addLayout(classificacao_orcamentaria_formulario_layout)
@@ -289,6 +471,234 @@ class EditarDadosWindow(QMainWindow):
         frame.setLayout(layout)
 
         return frame
+
+    def create_contratacao_group(self):
+        contratacao_group_box = QGroupBox("Informações da Contratação")
+        contratacao_group_box.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3C3C5A;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                color: white;
+                margin-top: 13px;
+            }
+            QGroupBox:title {
+                subcontrol-origin: margin;
+                padding: 0 3px;
+            }
+        """)
+
+        contratacao_layout = QVBoxLayout()
+
+        # Campo de Objeto
+        objeto_layout = QHBoxLayout()
+        objeto_label = QLabel("Objeto:")
+        self.objeto_edit = QLineEdit(self.dados.get('objeto', ''))
+        objeto_layout.addWidget(objeto_label)
+        objeto_layout.addWidget(self.objeto_edit)
+        contratacao_layout.addLayout(objeto_layout)
+
+        # NUP, Material e Serviço com seleção exclusiva
+        nup_layout = QHBoxLayout()
+        nup_label = QLabel("NUP:")
+        self.nup_edit = QLineEdit(self.dados.get('nup', ''))
+        nup_layout.addWidget(nup_label)
+        nup_layout.addWidget(self.nup_edit)
+
+        contratacao_layout.addLayout(nup_layout)
+
+        # Layout para Vigência e Critério de Julgamento
+        vigencia_layout = QHBoxLayout()
+
+        # Vigência ComboBox
+        vigencia_label = QLabel("Vigência:")
+        self.vigencia_combo = QComboBox()
+        self.vigencia_combo.setEditable(True)
+        self.vigencia_combo.setStyleSheet("font-size: 14px;")  # Define o tamanho da fonte via stylesheet
+        for i in range(1, 13):
+            self.vigencia_combo.addItem(f"{i} ({number_to_text(i)}) meses")
+        vigencia = self.dados.get('vigencia', '2 (dois) meses')
+        self.vigencia_combo.setCurrentText(vigencia)
+
+        # Expansão horizontal apenas, mantendo altura padrão
+        self.vigencia_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        # Adiciona Vigência ao layout
+        vigencia_layout.addWidget(vigencia_label)
+        vigencia_layout.addWidget(self.vigencia_combo)
+        contratacao_layout.addLayout(vigencia_layout)
+        
+        criterio_layout = QHBoxLayout()
+        # Critério de Julgamento ComboBox
+        criterio_label = QLabel("Critério Julgamento:")
+        self.criterio_combo = QComboBox()
+        self.criterio_combo.setStyleSheet("font-size: 14px;")  # Define o tamanho da fonte via stylesheet
+        self.criterio_combo.addItems(["Menor Preço", "Maior Desconto"])
+        self.criterio_combo.setCurrentText(self.dados.get('criterio_julgamento', 'Menor Preço'))
+
+        # Expansão horizontal apenas, mantendo altura padrão
+        self.criterio_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        # Adiciona Critério de Julgamento ao layout
+        criterio_layout.addWidget(criterio_label)
+        criterio_layout.addWidget(self.criterio_combo)
+
+        # Adiciona o layout ao layout principal de contratação
+        contratacao_layout.addLayout(criterio_layout)
+
+        # Material e Serviço com seleção exclusiva usando RadioButtons
+        material_servico_layout = QHBoxLayout()
+        material_servico_label = QLabel("Material/Serviço:")
+        radio_material = QRadioButton("Material")
+        radio_servico = QRadioButton("Serviço")
+
+        # Grupo de botões exclusivo para Material e Serviço
+        material_servico_group = QButtonGroup()
+        material_servico_group.addButton(radio_material)
+        material_servico_group.addButton(radio_servico)
+
+        # Define o estado inicial
+        material_servico = self.dados.get('material_servico', 'Material')
+        radio_servico.setChecked(material_servico == "Serviço")
+        radio_material.setChecked(material_servico == "Material")
+
+        # Adiciona ao layout
+        material_servico_layout.addWidget(material_servico_label)
+        material_servico_layout.addWidget(radio_material)
+        material_servico_layout.addWidget(radio_servico)
+        contratacao_layout.addLayout(material_servico_layout)
+
+        # Com Disputa
+        disputa_layout = QHBoxLayout()
+        disputa_label = QLabel("Com disputa?")
+        radio_disputa_sim = QRadioButton("Sim")
+        radio_disputa_nao = QRadioButton("Não")
+        disputa_group = QButtonGroup()  # Grupo exclusivo para este conjunto
+        disputa_group.addButton(radio_disputa_sim)
+        disputa_group.addButton(radio_disputa_nao)
+
+        # Define o estado inicial com base nos dados, considerando ambos os botões
+        com_disputa_value = self.dados.get('com_disputa', 'Sim')
+        radio_disputa_sim.setChecked(com_disputa_value == 'Sim')
+        radio_disputa_nao.setChecked(com_disputa_value == 'Não')
+
+        disputa_layout.addWidget(disputa_label)
+        disputa_layout.addWidget(radio_disputa_sim)
+        disputa_layout.addWidget(radio_disputa_nao)
+        contratacao_layout.addLayout(disputa_layout)
+
+        # Pesquisa de Preço Concomitante
+        pesquisa_layout = QHBoxLayout()
+        pesquisa_label = QLabel("Pesquisa Concomitante?")
+        radio_pesquisa_sim = QRadioButton("Sim")
+        radio_pesquisa_nao = QRadioButton("Não")
+        pesquisa_group = QButtonGroup()  # Grupo exclusivo para este conjunto
+        pesquisa_group.addButton(radio_pesquisa_sim)
+        pesquisa_group.addButton(radio_pesquisa_nao)
+
+        # Define o estado inicial com base nos dados, considerando ambos os botões
+        pesquisa_preco_value = self.dados.get('pesquisa_preco', 'Não')
+        radio_pesquisa_sim.setChecked(pesquisa_preco_value == 'Sim')
+        radio_pesquisa_nao.setChecked(pesquisa_preco_value == 'Não')
+
+        pesquisa_layout.addWidget(pesquisa_label)
+        pesquisa_layout.addWidget(radio_pesquisa_sim)
+        pesquisa_layout.addWidget(radio_pesquisa_nao)
+        contratacao_layout.addLayout(pesquisa_layout)
+
+        # Configura layout do GroupBox
+        contratacao_group_box.setLayout(contratacao_layout)
+
+        return contratacao_group_box
+
+    def create_classificacao_orcamentaria_group(self):
+        """Cria o QGroupBox para a seção de Classificação Orçamentária."""
+        classificacao_orcamentaria_group_box = QGroupBox("Classificação Orçamentária")
+        classificacao_orcamentaria_group_box.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3C3C5A;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                color: white;
+                margin-top: 13px;
+            }
+            QGroupBox:title {
+                subcontrol-origin: margin;
+                padding: 0 3px;
+            }
+        """)
+        classificacao_orcamentaria_group_box.setFixedWidth(400)
+        
+        layout = QVBoxLayout()
+
+        # Criando cada campo de entrada e armazenando como atributo da classe
+        valor_total_layout = QHBoxLayout()
+        valor_total_label = QLabel("Valor Estimado:")
+        self.valor_total_edit = QLineEdit(str(self.dados.get('valor_total', '')))
+        valor_total_layout.addWidget(valor_total_label)
+        valor_total_layout.addWidget(self.valor_total_edit)
+        layout.addLayout(valor_total_layout)
+
+        acao_interna_layout = QHBoxLayout()
+        acao_interna_label = QLabel("Ação Interna:")
+        self.acao_interna_edit = QLineEdit(str(self.dados.get('acao_interna', '')))
+        acao_interna_layout.addWidget(acao_interna_label)
+        acao_interna_layout.addWidget(self.acao_interna_edit)
+        layout.addLayout(acao_interna_layout)
+
+        fonte_recursos_layout = QHBoxLayout()
+        fonte_recursos_label = QLabel("Fonte de Recurso (FR):")
+        self.fonte_recursos_edit = QLineEdit(str(self.dados.get('fonte_recursos', '')))
+        fonte_recursos_layout.addWidget(fonte_recursos_label)
+        fonte_recursos_layout.addWidget(self.fonte_recursos_edit)
+        layout.addLayout(fonte_recursos_layout)
+
+        natureza_despesa_layout = QHBoxLayout()
+        natureza_despesa_label = QLabel("Natureza de Despesa (ND):")
+        self.natureza_despesa_edit = QLineEdit(str(self.dados.get('natureza_despesa', '')))
+        natureza_despesa_layout.addWidget(natureza_despesa_label)
+        natureza_despesa_layout.addWidget(self.natureza_despesa_edit)
+        layout.addLayout(natureza_despesa_layout)
+
+        unidade_orcamentaria_layout = QHBoxLayout()
+        unidade_orcamentaria_label = QLabel("Unidade Orçamentária (UO):")
+        self.unidade_orcamentaria_edit = QLineEdit(str(self.dados.get('unidade_orcamentaria', '')))
+        unidade_orcamentaria_layout.addWidget(unidade_orcamentaria_label)
+        unidade_orcamentaria_layout.addWidget(self.unidade_orcamentaria_edit)
+        layout.addLayout(unidade_orcamentaria_layout)
+
+        ptres_layout = QHBoxLayout()
+        ptres_label = QLabel("PTRES:")
+        self.ptres_edit = QLineEdit(str(self.dados.get('ptres', '')))
+        ptres_layout.addWidget(ptres_label)
+        ptres_layout.addWidget(self.ptres_edit)
+        layout.addLayout(ptres_layout)
+
+        # Adicionando o rádio button de Atividade de Custeio
+        custeio_layout = QHBoxLayout()
+        custeio_label = QLabel("Atividade de Custeio?")
+        self.radio_custeio_sim = QRadioButton("Sim")
+        self.radio_custeio_nao = QRadioButton("Não")
+        custeio_group = QButtonGroup()  # Grupo exclusivo para o conjunto de botões
+        custeio_group.addButton(self.radio_custeio_sim)
+        custeio_group.addButton(self.radio_custeio_nao)
+
+        # Define o estado inicial com base nos dados
+        atividade_custeio_value = self.dados.get('atividade_custeio', 'Não')
+        self.radio_custeio_sim.setChecked(atividade_custeio_value == 'Sim')
+        self.radio_custeio_nao.setChecked(atividade_custeio_value == 'Não')
+
+        custeio_layout.addWidget(custeio_label)
+        custeio_layout.addWidget(self.radio_custeio_sim)
+        custeio_layout.addWidget(self.radio_custeio_nao)
+        
+        # Adiciona o layout do rádio button ao layout principal
+        layout.addLayout(custeio_layout)
+        classificacao_orcamentaria_group_box.setLayout(layout)
+        
+        return classificacao_orcamentaria_group_box
 
     def stacked_widget_responsaveis(self, data):
         frame = QFrame()
@@ -410,11 +820,11 @@ class EditarDadosWindow(QMainWindow):
         situacao_om_setor_layout.addWidget(situacao_label)
 
         # Cria um combobox para a situação
-        situacao_combo = QComboBox()
-        situacao_combo.setStyleSheet("font-size: 14px")
-        situacao_combo.addItems(["Planejamento", "Aprovado", "Sessão Pública", "Homologado", "Empenhado", "Concluído", "Arquivado"])
-        situacao_combo.setCurrentText(self.dados.get('situacao', 'Planejamento'))
-        situacao_om_setor_layout.addWidget(situacao_combo)
+        self.situacao_combo = QComboBox()
+        self.situacao_combo.setStyleSheet("font-size: 14px")
+        self.situacao_combo.addItems(["Planejamento", "Aprovado", "Sessão Pública", "Homologado", "Empenhado", "Concluído", "Arquivado"])
+        self.situacao_combo.setCurrentText(self.dados.get('situacao', 'Planejamento'))
+        situacao_om_setor_layout.addWidget(self.situacao_combo)
 
         om_layout, self.om_combo = create_selecao_om_layout(
             self.database_path,
@@ -432,8 +842,8 @@ class EditarDadosWindow(QMainWindow):
         divisao_layout.addWidget(divisao_label)
 
         # Criando o QComboBox editável
-        setor_responsavel_combo = QComboBox()
-        setor_responsavel_combo.setStyleSheet("font-size: 14px")
+        self.setor_responsavel_combo = QComboBox()
+        self.setor_responsavel_combo .setStyleSheet("font-size: 14px")
         # Adicionando as opções ao ComboBox
         divisoes = [
             "Divisão de Abastecimento",
@@ -443,11 +853,11 @@ class EditarDadosWindow(QMainWindow):
             "Divisão de Administração",
             "Divisão de Subsistência"
         ]
-        setor_responsavel_combo.addItems(divisoes)
+        self.setor_responsavel_combo .addItems(divisoes)
 
         # Definindo o texto atual com base nos dados fornecidos
-        setor_responsavel_combo.setCurrentText(self.dados.get('setor_responsavel', 'Selecione a Divisão'))
-        divisao_layout.addWidget(setor_responsavel_combo)
+        self.setor_responsavel_combo .setCurrentText(self.dados.get('setor_responsavel', 'Selecione a Divisão'))
+        divisao_layout.addWidget(self.setor_responsavel_combo )
 
         situacao_om_setor_layout.addLayout(divisao_layout)
             # Espaçador abaixo da linha divisória
@@ -468,9 +878,9 @@ class EditarDadosWindow(QMainWindow):
 
     def create_sessao_publica_group(self):
         # Criação do QGroupBox para a seção Sessão Pública
-        sessao_groupbox = QGroupBox("Sessão Pública:")
-        sessao_groupbox.setMaximumWidth(300)
-        sessao_groupbox.setStyleSheet("""
+        self.sessao_groupbox = QGroupBox("Sessão Pública:")
+        self.sessao_groupbox.setMaximumWidth(300)
+        self.sessao_groupbox.setStyleSheet("""
             QGroupBox {
                 border: 1px solid #3C3C5A;
                 border-radius: 10px;
@@ -485,7 +895,7 @@ class EditarDadosWindow(QMainWindow):
             }
         """)
 
-        group_layout = QHBoxLayout(sessao_groupbox)
+        group_layout = QHBoxLayout(self.sessao_groupbox)
         
         # Ícone de calendário ao lado do label "Defina a data:"
         calendar_icon = QIcon(self.icons.get("calendar", None))
@@ -515,7 +925,7 @@ class EditarDadosWindow(QMainWindow):
 
         group_layout.addWidget(self.data_edit)
         
-        return sessao_groupbox
+        return self.sessao_groupbox
 
     def setup_layout_conteudo(self):
         """Configura o layout de conteúdo com StackedWidget e agentes responsáveis."""
@@ -531,50 +941,110 @@ class EditarDadosWindow(QMainWindow):
         
         return layout_conteudo
 
+    def setup_formularios(self):
+        """Configura o layout para consulta à API com campos de CNPJ e Sequencial PNCP."""
+        group_box = QGroupBox("Formulário")
+        layout = QVBoxLayout(group_box)
+
+        # Aplicando o estilo CSS específico ao GroupBox
+        group_box.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3C3C5A;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                color: white;
+                margin-top: 13px;
+            }
+            QGroupBox:title {
+                subcontrol-origin: margin;
+                padding: 0 3px;
+            }
+        """)
+
+        # Layout vertical para os botões
+        vlayout_botoes = QVBoxLayout()
+        
+        # Conectar o botão `Novo Formulário` à função `criar_formulario` usando uma função lambda
+        add_button_func("   Novo Formulário   ", "excel_down", lambda: self.criar_formulario(), vlayout_botoes, self.icons, tooltip="Gerar o Formulário")
+        add_button_func("Importar Formulário", "excel_up", self.on_import_formulario_clicked, vlayout_botoes, self.icons, tooltip="Carregar o Formulário")
+
+        # Adicionar o layout de botões ao layout principal
+        layout.addLayout(vlayout_botoes)
+        return group_box
+    
+    def criar_formulario(self):
+        # Inicia o worker para criação do formulário em segundo plano
+        self.worker = TableCreationWorker(self.dados, self.colunas_legiveis, self.pasta_base)
+        self.worker.file_saved.connect(self.abrir_arquivo)  # Conecta o sinal de conclusão
+        self.worker.start()  # Inicia a execução em segundo plano
+
+    def abrir_arquivo(self, file_path):
+        """Abre o arquivo salvo com o caminho fornecido."""
+        if os.name == 'nt':
+            os.startfile(file_path)
+        elif os.name == 'posix':
+            subprocess.call(['open', file_path])
+        else:
+            subprocess.call(['xdg-open', file_path])
+
+    def on_import_formulario_clicked(self):
+        """Ação disparada ao clicar no botão 'Importar Formulário'."""
+        self.carregar_formulario()
             
-    def save_data(self):
-        # Coleta os dados dos widgets de contratação
-        data_to_save = {
-            'id_processo': self.dados.get('id_processo'),
-            'tipo': self.dados.get('tipo'),
-            'numero': self.dados.get('numero'),
-            'ano': self.dados.get('ano'),
-            'objeto': self.contratacao_widgets['objeto_edit'].text(),
-            'nup': self.contratacao_widgets['nup_edit'].text(),
-            'material_servico': 'Material' if self.contratacao_widgets['radio_material'].isChecked() else 'Serviço',
-            'vigencia': self.contratacao_widgets['vigencia_combo'].currentText(),
-            'criterio_julgamento': self.contratacao_widgets['criterio_combo'].currentText(),
-            'com_disputa': 'Sim' if self.contratacao_widgets['radio_disputa_sim'].isChecked() else 'Não',
-            'pesquisa_preco': 'Sim' if self.contratacao_widgets['radio_pesquisa_sim'].isChecked() else 'Não'
-        }
-        
-        # Coleta os dados dos widgets de classificação orçamentária
-        data_to_save.update({
-            'valor_total': self.widgets_classificacao_orcamentaria['valor_total'].text(),
-            'acao_interna': self.widgets_classificacao_orcamentaria['acao_interna'].text(),
-            'fonte_recursos': self.widgets_classificacao_orcamentaria['fonte_recursos'].text(),
-            'natureza_despesa': self.widgets_classificacao_orcamentaria['natureza_despesa'].text(),
-            'unidade_orcamentaria': self.widgets_classificacao_orcamentaria['unidade_orcamentaria'].text(),
-            'ptres': self.widgets_classificacao_orcamentaria['ptres'].text(),
-            'atividade_custeio': 'Sim' if self.widgets_classificacao_orcamentaria['radio_custeio_sim'].isChecked() else 'Não'
-        })
+    def carregar_formulario(self):
+        """Permite ao usuário selecionar um arquivo XLSX ou ODS e carrega os dados"""
+        # Abre a caixa de diálogo para selecionar o arquivo
+        file_path, _ = QFileDialog.getOpenFileName(self, "Selecionar Formulário", "", "Arquivos Excel (*.xlsx *.ods)")
 
-        data_to_save.update({
-            'cp': self.widget_setor_responsavel['cp_edit'].text(),
-            'cod_par': self.widget_setor_responsavel['par_edit'].text(),
-            'prioridade_par': self.widget_setor_responsavel['prioridade_combo'].currentText(),
-            'endereco': self.widget_setor_responsavel['endereco_edit'].text(),
-            'cep': self.widget_setor_responsavel['cep_edit'].text(),
-            'email': self.widget_setor_responsavel['email_edit'].text(),
-            'telefone': self.widget_setor_responsavel['telefone_edit'].text(),
-            'dias_recebimento': self.widget_setor_responsavel['dias_edit'].text(),
-            'horario_recebimento': self.widget_setor_responsavel['horario_edit'].text(),
-            'justificativa': self.widget_setor_responsavel['justificativa_edit'].toPlainText()
-        })
-        
-        # Debug para verificar o conteúdo de data_to_save
-        print("Dados para salvar:", data_to_save)
+        if not file_path:
+            return  # Se o usuário cancelar, encerra a função
 
-        # Emissão do sinal para salvar os dados
-        self.save_data_signal.emit(data_to_save)
-        
+        try:
+            # Verifica a extensão do arquivo para escolher o método de leitura adequado e pula a primeira linha
+            if file_path.endswith('.xlsx'):
+                data = pd.read_excel(file_path, engine='openpyxl', header=1)
+            elif file_path.endswith('.ods'):
+                data = pd.read_excel(file_path, engine='odf', header=1)
+            else:
+                QMessageBox.warning(self, "Formato Inválido", "Por favor, selecione um arquivo .xlsx ou .ods.")
+                return
+
+            # Exibe os dados no console para verificar o conteúdo
+            print("Dados do formulário carregados:")
+            print(data)
+
+            # Armazena o DataFrame para ser usado na função de preenchimento
+            self.df_registro_selecionado = data
+
+            # Preenche os campos específicos com os valores carregados
+            self.preencher_dados(data)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erro ao Carregar Formulário", f"Erro ao carregar o formulário: {e}")
+
+
+    def preencher_dados(self, dados_novos):
+        """Preenche os campos da interface com os dados carregados"""
+        try:
+            def obter_valor(indice):
+                """Função auxiliar para obter um valor de 'Valor' com base no 'Índice'"""
+                resultado = dados_novos.loc[dados_novos['Índice'] == indice, 'Valor']
+                return str(resultado.values[0]) if not resultado.empty else ""
+
+            # Atualizar campos específicos com base nos valores da coluna 'Valor' do DataFrame
+            self.valor_total_edit.setText(obter_valor('Valor Total'))
+            self.acao_interna_edit.setText(obter_valor('Ação Interna'))
+            self.fonte_recursos_edit.setText(obter_valor('Fonte de Recursos'))
+            self.natureza_despesa_edit.setText(obter_valor('Natureza da Despesa'))
+            self.unidade_orcamentaria_edit.setText(obter_valor('Unidade Orçamentária'))
+            self.ptres_edit.setText(obter_valor('PTRES'))
+            
+            # Configurar o estado do botão de rádio com base no valor encontrado
+            atividade_custeio_valor = obter_valor('Atividade de Custeio')
+            self.radio_custeio_sim.setChecked(atividade_custeio_valor == 'Sim')
+            self.radio_custeio_nao.setChecked(atividade_custeio_valor == 'Não')
+
+        except Exception as e:
+            print(f"Erro ao preencher os dados: {str(e)}")
+            QMessageBox.critical(self, "Erro", f"Falha ao preencher os dados: {str(e)}")

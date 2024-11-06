@@ -75,7 +75,7 @@ class DispensaEletronicaModel(QObject):
                 telefone TEXT,
                 dias_para_recebimento TEXT,
                 horario_para_recebimento TEXT,
-                valor_total REAL,
+                valor_total TEXT,
                 acao_interna TEXT,
                 fonte_recursos TEXT,
                 natureza_despesa TEXT,
@@ -84,6 +84,8 @@ class DispensaEletronicaModel(QObject):
                 atividade_custeio TEXT,                          
                 comentarios TEXT,                          
                 justificativa TEXT,
+                cnpj_matriz TEXT,
+                sequencial_pncp TEXT,
                 link_pncp TEXT,
                 comunicacao_padronizada TEXT             
             )
@@ -151,8 +153,12 @@ class DispensaEletronicaModel(QObject):
             fonte_recursos, 
             natureza_despesa,
             unidade_orcamentaria, 
-            ptres
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ptres,
+            cnpj_matriz,
+            sequencial_pncp,
+            link_pncp,
+            comunicacao_padronizada
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id_processo) DO UPDATE SET
             situacao=excluded.situacao,
             tipo=excluded.tipo,
@@ -192,7 +198,11 @@ class DispensaEletronicaModel(QObject):
             fonte_recursos=excluded.fonte_recursos, 
             natureza_despesa=excluded.natureza_despesa,
             unidade_orcamentaria=excluded.unidade_orcamentaria,
-            ptres=excluded.ptres
+            ptres=excluded.ptres,
+            cnpj_matriz=excluded.cnpj_matriz,
+            sequencial_pncp=excluded.sequencial_pncp,
+            link_pncp=excluded.link_pncp,
+            comunicacao_padronizada=excluded.comunicacao_padronizada
         '''
 
         # Verifica se 'situacao' está dentro dos valores válidos
@@ -218,33 +228,37 @@ class DispensaEletronicaModel(QObject):
                 data.get('orgao_responsavel'),
                 data.get('sigla_om'), 
                 data.get('setor_responsavel', ''), 
-                data.get('data_sessao', None), 
+                data.get('data_sessao', ''),
                 data.get('operador', ''),
                 data.get('criterio_julgamento', ''), 
                 data.get('com_disputa'),
                 data.get('pesquisa_preco'), 
                 data.get('atividade_custeio'),
-                data.get('previsao_contratacao', None),
-                data.get('responsavel_pela_demanda', None), 
-                data.get('ordenador_despesas', None), 
-                data.get('agente_fiscal', None), 
-                data.get('gerente_de_credito', None), 
-                data.get('cp', None),
-                data.get('cod_par', None), 
-                data.get('prioridade_par', None), 
-                data.get('justificativa', None),
-                data.get('cep', None), 
-                data.get('endereco', None), 
-                data.get('email', None), 
-                data.get('telefone', None), 
-                data.get('dias_recebimento', None), 
-                data.get('horario_recebimento', None),
-                data.get('valor_total', None), 
-                data.get('acao_interna', None), 
-                data.get('fonte_recursos', None), 
-                data.get('natureza_despesa', None),  
-                data.get('unidade_orcamentaria', None), 
-                data.get('ptres', None)
+                data.get('previsao_contratacao', ''),
+                data.get('responsavel_pela_demanda', ''),
+                data.get('ordenador_despesas', ''), 
+                data.get('agente_fiscal', ''),
+                data.get('gerente_de_credito', ''),
+                data.get('cp', ''),
+                data.get('cod_par', ''),
+                data.get('prioridade_par', ''),
+                data.get('justificativa', ''),
+                data.get('cep', ''), 
+                data.get('endereco', ''),
+                data.get('email', ''),
+                data.get('telefone', ''),
+                data.get('dias_recebimento', ''),
+                data.get('horario_recebimento', ''),
+                data.get('valor_total', ''),
+                data.get('acao_interna', ''),
+                data.get('fonte_recursos', ''),
+                data.get('natureza_despesa', ''), 
+                data.get('unidade_orcamentaria', ''),
+                data.get('ptres', ''),
+                data.get('cnpj_matriz', '00394502000144'),
+                data.get('sequencial_pncp', ''),
+                data.get('link_pncp', ''),
+                data.get('comunicacao_padronizada', '')
             ))
             conn.commit()
 
@@ -272,7 +286,7 @@ class CustomSqlTableModel(QSqlTableModel):
             "prioridade_par", "cep", "endereco", "email", "telefone", 
             "dias_para_recebimento", "horario_para_recebimento", "valor_total", 
             "acao_interna", "fonte_recursos", "natureza_despesa", "unidade_orcamentaria", 
-            "ptres", "atividade_custeio", "comentarios", "justificativa", "link_pncp", 
+            "ptres", "atividade_custeio", "comentarios", "justificativa", "cnpj_matriz","sequencial_pncp", "link_pncp", 
             "comunicacao_padronizada"
         ]
 

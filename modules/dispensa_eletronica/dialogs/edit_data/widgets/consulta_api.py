@@ -5,7 +5,7 @@ from modules.utils.add_button import create_button
 
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton
 
-def setup_consulta_api(parent, icons, max_width=300):
+def setup_consulta_api(parent, icons, data, max_width=300):
     """Configura o layout para consulta à API com campos de CNPJ e Sequencial PNCP."""
     group_box = QGroupBox("Consulta API", parent)
     group_box.setMaximumWidth(max_width)
@@ -27,30 +27,29 @@ def setup_consulta_api(parent, icons, max_width=300):
         }
     """)
 
-    # Criação do primeiro layout horizontal para "CNPJ Matriz"
-    cnpj_layout = QHBoxLayout()
+    # Layout para CNPJ Matriz
+    cnpj_layout = QHBoxLayout() 
     label_cnpj = QLabel("CNPJ Matriz:", parent)
     label_cnpj.setStyleSheet("color: #8AB4F7; font-size: 16px")
     cnpj_layout.addWidget(label_cnpj)
 
-    cnpj_edit = QLineEdit(parent)
-    cnpj_edit.setText("00394502000144")  # Valor pré-preenchido
+    cnpj_edit = QLineEdit(str(data.get('cnpj_matriz', '00394502000144')))
     cnpj_layout.addWidget(cnpj_edit)
-    
-    # Adiciona o primeiro layout horizontal ao layout principal
+
+    # Adiciona o layout do CNPJ ao layout principal
     layout.addLayout(cnpj_layout)
 
-    # Criação do segundo layout horizontal para "Sequencial PNCP"
+    # Layout para Sequencial PNCP
     sequencial_layout = QHBoxLayout()
     label_sequencial = QLabel("Sequencial PNCP:", parent)
     label_sequencial.setStyleSheet("color: #8AB4F7; font-size: 16px")
     sequencial_layout.addWidget(label_sequencial)
 
-    sequencial_edit = QLineEdit(parent)
+    sequencial_edit = QLineEdit(str(data.get('sequencial_pncp', '')))
     sequencial_edit.setPlaceholderText("Digite o Sequencial PNCP")
     sequencial_layout.addWidget(sequencial_edit)
 
-    # Adiciona o segundo layout horizontal ao layout principal
+    # Adiciona o layout do Sequencial ao layout principal
     layout.addLayout(sequencial_layout)
 
     # Botão de consulta usando a função create_button com ícone
