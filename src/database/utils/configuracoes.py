@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import Canvas, ttk, PhotoImage
-from diretorios import *
+from src.config.diretorios import *
 import os
 
 def carregar_imagem_redimensionada(caminho):

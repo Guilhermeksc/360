@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 import pandas as pd
-from diretorios import *
+from src.config.diretorios import *
 
 def create_GrupoSIGDEM(data):
     """Função principal que cria o QGroupBox para o SIGDEM com assunto e sinopse configurados."""

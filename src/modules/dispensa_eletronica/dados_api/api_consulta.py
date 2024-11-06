@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtGui import *
-from diretorios import *
+from src.config.diretorios import *
 import sqlite3
 import re
 from pathlib import Path

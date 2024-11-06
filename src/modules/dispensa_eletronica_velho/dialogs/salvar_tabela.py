@@ -3,7 +3,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QSize
 import sqlite3
 import os
-from diretorios import ICONS_DIR, CONTROLE_DADOS
+from src.config.diretorios import ICONS_DIR, CONTROLE_DADOS
 
 class SaveTableDialog(QDialog):
     def __init__(self, parent=None):

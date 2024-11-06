@@ -30,15 +30,18 @@ def on_search_text_changed(text, proxy_model):
     regex = QRegularExpression(text, QRegularExpression.PatternOption.CaseInsensitiveOption)
     proxy_model.setFilterRegularExpression(regex)
 
-def setup_search_bar(layout, proxy_model):
-    search_label = QLabel("Localizar:")
-    search_label.setStyleSheet("""
-        color: #8AB4F7;
-        font-size: 14px;
-        font-weight: bold;
-        margin-right: 10px;
-    """)
+def setup_search_bar(icons, layout, proxy_model):
+    search_label = QLabel()
+    search_label.setPixmap(icons["magnifying-glass"].pixmap(30, 30))  # Ícone de tamanho 20x20
     layout.addWidget(search_label)
+    # search_label = QLabel("Localizar:")
+    # search_label.setStyleSheet("""
+    #     color: #8AB4F7;
+    #     font-size: 14px;
+    #     font-weight: bold;
+    #     margin-right: 10px;
+    # """)
+    # layout.addWidget(search_label)
 
     search_bar = QLineEdit()
     search_bar.setPlaceholderText("Digite para buscar...")
@@ -50,12 +53,13 @@ def setup_search_bar(layout, proxy_model):
             font-weight: bold;
             padding: 8px;
             border: 1px solid #8AB4F7;
-            border-radius: 20px;
+            border-radius: 5px;
         }
         QLineEdit:focus {
             border: 1px solid #8AB4F7;
             background-color: #181928;
             color: #FFFFFF;
+            border-radius: 5px;
         }
     """)
     search_bar.textChanged.connect(lambda text: on_search_text_changed(text, proxy_model))

@@ -1,7 +1,7 @@
 from src.modules.dispensa_eletronica.models import DispensaEletronicaModel
 from src.modules.dispensa_eletronica.views import DispensaEletronicaWidget
 from src.modules.dispensa_eletronica.dialogs.add_item import AddItemDialog
-from src.modules.dispensa_eletronica.dialogs.salvar_tabela import SaveTableDialog
+from src.modules.dispensa_eletronica.dialogs.salvar_tabela import DataManager
 from src.modules.dispensa_eletronica.dialogs.graficos import GraficTableDialog
 from src.modules.dispensa_eletronica.dialogs.gerar_tabela import TabelaResumidaManager
 from src.modules.dispensa_eletronica.dialogs.edit_data.edit_data import EditarDadosWindow
@@ -11,11 +11,13 @@ from PyQt6.QtCore import *
 import pandas as pd
 
 class DispensaEletronicaController(QObject):
-    def __init__(self, view, model):
+    def __init__(self, icons, view, model):
         super().__init__()
+        self.icons = icons
         self.view = view
         self.edit_data_dialog = None
-        self.model = model
+        self.model_add = model
+        self.model = model.setup_model("controle_dispensas")
         self.database_path = model.database_manager.db_path
         self.setup_connections()
 
@@ -23,27 +25,31 @@ class DispensaEletronicaController(QObject):
         # Conecta os sinais da view aos métodos do controlador
         self.view.addItem.connect(self.handle_add_item)
         self.view.deleteItem.connect(self.handle_delete_item)
-        self.view.salvar_tabela.connect(self.handle_save_table)
+        self.view.dataManager.connect(self.handle_data_manager)
         self.view.salvar_graficos.connect(self.handle_save_charts)
         self.view.salvar_print.connect(self.handle_save_print)
         self.view.rowDoubleClicked.connect(self.handle_edit_item)
 
     def handle_add_item(self):
         """Trata a ação de adicionar item."""
-        dialog = AddItemDialog(self.model.database_manager.db_path, self.view)  # Passa o caminho do banco de dados
+        dialog = AddItemDialog(self.icons, self.model.database_manager.db_path, self.view)  # Passa o caminho do banco de dados
         if dialog.exec():
             item_data = dialog.get_data()
             # Adiciona a situação padrão 'Planejamento' antes de salvar
             item_data['situacao'] = 'Planejamento'
-            self.model.insert_or_update_data(item_data)  # Salva no banco de dados
+            self.model_add.insert_or_update_data(item_data)  # Salva no banco de dados
             self.view.refresh_model()   # Salva no banco de dados
 
     def handle_delete_item(self):
         """Trata a ação de exclusão de um item selecionado."""
         selection_model = self.view.table_view.selectionModel()
+        print("Iniciando a exclusão do item...")
+
         if selection_model.hasSelection():
-            index = selection_model.selectedRows(0)[0]  # Assumindo que a coluna 0 é 'id_processo'
+            index = selection_model.selectedRows(1)[0]  # Assumindo que a coluna 0 é 'id_processo'
             id_processo = index.data()
+            print(f"ID do processo selecionado para exclusão: {id_processo}")
+
             if id_processo:
                 confirmation = QMessageBox.question(
                     self.view, "Confirmação",
@@ -51,15 +57,27 @@ class DispensaEletronicaController(QObject):
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No
                 )
+                print("Confirmação de exclusão solicitada.")
+
                 if confirmation == QMessageBox.StandardButton.Yes:
-                    self.model.delete_data(id_processo)
-                    self.view.refresh_model()
+                    print(f"Confirmado. Excluindo o item com ID: {id_processo}")
+                    # Usando o método delete_data corretamente
+                    try:
+                        self.model.database_manager.delete_data(id_processo)
+                        print("Item excluído com sucesso.")
+                        self.view.refresh_model()
+                        print("Modelo atualizado após exclusão.")
+                    except Exception as e:
+                        print(f"Erro ao excluir o item: {e}")
+                else:
+                    print("Exclusão cancelada pelo usuário.")
         else:
+            print("Nenhum item selecionado para exclusão.")
             QMessageBox.warning(self.view, "Nenhuma Seleção", "Por favor, selecione um item para excluir.")
 
-    def handle_save_table(self):
-        """Trata a ação de salvar a tabela."""
-        dialog = SaveTableDialog(self.view)  # Supondo que SaveTableDialog está implementado
+    def handle_data_manager(self):
+        """Trata a ação de salvar a tabela e gerenciar as ações de dados."""
+        dialog = DataManager(self.icons, self.model)  
         dialog.exec()
 
     def handle_save_charts(self):

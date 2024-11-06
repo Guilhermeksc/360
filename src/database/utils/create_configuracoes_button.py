@@ -8,7 +8,7 @@ from PyQt6.QtGui import QIcon, QFont
 from PyQt6.QtCore import QObject, pyqtSignal, QSize, QTranslator, QLocale
 from pathlib import Path
 import os
-from diretorios import *
+from src.config.diretorios import *
 
 class ConfiguracoesDialog(QDialog):
     def __init__(self, parent=None):

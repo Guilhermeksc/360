@@ -1,14 +1,14 @@
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
-from diretorios import *
+from src.config.diretorios import *
 import sqlite3
 from pathlib import Path
 import pandas as pd
 import os
 import sqlite3
 from src.database.utils.treeview_utils import load_images
-from diretorios import *
+from src.config.diretorios import *
 class AgentesResponsaveisDialog(QDialog):
     config_updated = pyqtSignal()
 

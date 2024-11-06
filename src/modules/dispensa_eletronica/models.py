@@ -262,14 +262,6 @@ class DispensaEletronicaModel(QObject):
             ))
             conn.commit()
 
-
-    def delete_data(self, id_processo):
-        """Exclui um registro da tabela 'controle_dispensas' pelo id_processo."""
-        with self.database_manager as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM controle_dispensas WHERE id_processo = ?", (id_processo,))
-        conn.commit()
-
 class CustomSqlTableModel(QSqlTableModel):
     def __init__(self, parent=None, db=None, database_manager=None, non_editable_columns=None):
         super().__init__(parent, db)

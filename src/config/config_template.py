@@ -8,7 +8,7 @@ import json
 import openpyxl
 import os
 
-from diretorios import *
+from src.config.diretorios import *
 from src.database.utils.treeview_utils import load_images
 
 class TemplatesDialog(QDialog):

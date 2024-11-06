@@ -8,7 +8,7 @@ class DispensaEletronicaWidget(QMainWindow):
     # Sinais para comunicação com o controlador
     addItem = pyqtSignal()
     deleteItem = pyqtSignal()
-    salvar_tabela = pyqtSignal()
+    dataManager = pyqtSignal()
     salvar_graficos = pyqtSignal()
     salvar_print = pyqtSignal()
     loadData = pyqtSignal(str)
@@ -37,7 +37,7 @@ class DispensaEletronicaWidget(QMainWindow):
         
         # Layout para a barra de ferramentas
         top_layout = QHBoxLayout()
-        self.search_bar = setup_search_bar(top_layout, self.proxy_model)
+        self.search_bar = setup_search_bar(self.icons, top_layout, self.proxy_model)
         self.setup_buttons(top_layout)
         self.main_layout.addLayout(top_layout)
         
@@ -76,7 +76,7 @@ class DispensaEletronicaWidget(QMainWindow):
     def setup_buttons(self, layout):
         add_button("Adicionar", "plus", self.addItem, layout, self.icons, tooltip="Adicionar um novo item")  # Alteração aqui
         add_button("Excluir", "delete", self.deleteItem, layout, self.icons, tooltip="Excluir o item selecionado")
-        add_button("Tabelas", "excel", self.salvar_tabela, layout, self.icons, tooltip="Salva o dataframe em um arquivo Excel")
+        add_button("Database", "data-server", self.dataManager, layout, self.icons, tooltip="Salva o dataframe em um arquivo Excel")
         add_button("Gráficos", "performance", self.salvar_graficos, layout, self.icons, tooltip="Carrega dados de uma tabela")
         add_button("ConGes", "image-processing", self.salvar_print, layout, self.icons, tooltip="Abre o painel de controle do processo")
 

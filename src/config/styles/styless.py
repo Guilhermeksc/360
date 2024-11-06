@@ -1,3 +1,6 @@
+from PyQt6.QtGui import QIcon, QPixmap
+from PIL import Image, ImageQt
+
 def get_menu_button_style():
     return """
         QPushButton {
@@ -8,29 +11,30 @@ def get_menu_button_style():
             border: 1px solid transparent;
             border-left: 2px solid transparent; 
             border-radius: 0px;
-            padding: 10px 0px;
+            padding: 5px;
             margin: 0px; 
         }
         QPushButton:hover {
             background-color: #181928;
-            border-left: 2px solid #3F4042;
+            border-left: 2px solid transparent;
             color: white;
             border-radius: 0px;
+            padding: 5px;
         }
     """
 
 def get_menu_button_activated_style():
     return """
         QPushButton {
-            background-color: #202124;
+            background-color: #181928;
             color: white;
             font-weight: bold;
             font-size: 16px;
             text-align: left;
-            border: 1px solid #202124;
+            border: 1px solid #181928;
             border-left: 2px solid #8E4B79;
             border-radius: 0px;
-            padding: 10px 0px;
+            padding: 5px;
             margin: 0px; 
         }
     """
@@ -92,3 +96,7 @@ def apply_table_custom_style(table_view):
             font-size: 16px;
         }
     """)
+
+def create_grayscale_icon(icon_path):
+    img = Image.open(icon_path).convert("L")  # Converte para tons de cinza
+    return QIcon(QPixmap.fromImage(ImageQt.ImageQt(img)))

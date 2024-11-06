@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from diretorios import *
+from src.config.diretorios import *
 import os
 
 def adicionar_rotulo(quadro, texto, linha, fonte="calibri", tamanho="12", bold=True, pady_value=0, padx_value=(0, 0), columnspan=1, anchor="w", justify=tk.LEFT):

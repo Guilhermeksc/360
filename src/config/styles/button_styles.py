@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import QSize
-from diretorios import ICONS_DIR
+from src.config.diretorios import ICONS_DIR
 
 def apply_button_style(button, isTransparent):
     if isTransparent:

@@ -4,15 +4,16 @@ from PyQt6.QtCore import *
 from pathlib import Path
 from datetime import datetime
 import sqlite3
-from diretorios import CONTROLE_DADOS
+from src.config.diretorios import CONTROLE_DADOS
+
 class AddItemDialog(QDialog):
-    def __init__(self, database_path, parent=None):
+    def __init__(self, icons, database_path, parent=None):
         super().__init__(parent)
+        self.icons = icons
         self.database_path = database_path
         self.om_details = {}  # Inicializa como dicionário vazio para evitar erros
         self.setWindowTitle("Adicionar Item")
-        # icon_confirm = QIcon(str(ICONS_DIR / "plus.png"))
-        # self.setWindowIcon(icon_confirm)
+        self.setWindowIcon(self.icons["plus"])
 
         # self.setFixedSize(550, 250)
         # self.database_manager = DatabaseManager(self.database_path)

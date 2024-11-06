@@ -20,7 +20,7 @@ class InicioWidget(QWidget):
         
         # Sinopse do projeto
         self.synopsis_label = QLabel(
-            "Licitação 360 é um projeto desenvolvido em Python para automatizar processos repetitivos relacionados "
+            "Licitação 360 é um projeto em desenvolvimento para automatizar processos repetitivos relacionados "
             "a licitações e acordos administrativos. Com um foco na otimização e eficiência, o projeto oferece ferramentas "
             "para manipulação de documentos PDF, DOCX e XLSX, geração de relatórios, e automação de tarefas via RPA. "
             "O objetivo principal é melhorar a qualidade de vida no trabalho, minimizando erros e reduzindo a quantidade "

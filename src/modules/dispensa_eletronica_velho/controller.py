@@ -47,7 +47,8 @@ class DispensaEletronicaController(QObject):
                     QMessageBox.StandardButton.No
                 )
                 if confirmation == QMessageBox.StandardButton.Yes:
-                    self.model.delete_data(id_processo)
+                    # Chama o método delete_data corretamente
+                    self.model.database_manager.delete_data(id_processo)
                     self.view.refresh_model()
         else:
             QMessageBox.warning(self.view, "Nenhuma Seleção", "Por favor, selecione um item para excluir.")

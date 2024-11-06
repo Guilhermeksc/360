@@ -3,7 +3,7 @@ from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 import pandas as pd
 from pathlib import Path
-from diretorios import *
+from src.config.diretorios import *
 import re
 import num2words
 import subprocess

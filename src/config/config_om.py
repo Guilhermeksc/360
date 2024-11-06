@@ -6,7 +6,7 @@ import pandas as pd
 import sqlite3
 from pathlib import Path
 from openpyxl import load_workbook
-from diretorios import CONTROLE_DADOS
+from src.config.diretorios import CONTROLE_DADOS
 
 class OrganizacoesDialog(QDialog):
     controle_dados_dir_updated = pyqtSignal(Path)

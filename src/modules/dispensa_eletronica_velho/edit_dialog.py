@@ -5,7 +5,7 @@ from src.modules.dispensa_eletronica.documentos_cp_dfd_tr import PDFAddDialog, C
 from src.modules.dispensa_eletronica.utils_dispensa_eletronica import RealLineEdit
 from src.modules.dispensa_eletronica.dados_api.api_consulta import PNCPConsultaThread, PNCPConsulta
 from src.modules.dispensa_eletronica.formulario_excel import FormularioExcel
-from diretorios import *
+from src.config.diretorios import *
 from pathlib import Path
 import pandas as pd
 from pathlib import Path

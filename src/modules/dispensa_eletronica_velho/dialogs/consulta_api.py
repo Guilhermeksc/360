@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
-from diretorios import *
+from src.config.diretorios import *
 from src.modules.planejamento_novo.edit_data.edit_dialog_utils import (
                                     apply_widget_style_11, create_layout, create_button, add_separator_line)
 

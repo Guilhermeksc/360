@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 from pathlib import Path
-from diretorios import *
+from src.config.diretorios import *
 from src.config.styles.styless import apply_table_custom_style
 from src.database.utils.treeview_utils import load_images, create_button
 from src.modules.planejamento.utilidades_planejamento import DatabaseManager, carregar_dados_pregao, carregar_dados_dispensa
@@ -50,7 +50,7 @@ class DispensaEletronicaWidget(QMainWindow):
         # print("Carregando dados iniciais...")
         self.image_cache = load_images(self.icons_dir, [
             "business.png", "aproved.png", "session.png", "deal.png", "emenda_parlamentar.png", "verify_menu.png", "archive.png",
-            "plus.png", "import_de.png", "save_to_drive.png", "loading.png", "delete.png", "performance.png",
+            "plus.png", "save_to_drive.png", "loading.png", "delete.png", "performance.png",
             "excel.png", "calendar.png", "report.png", "management.png", "image-processing.png"
         ])
         self.selectedIndex = None
@@ -141,43 +141,45 @@ class DispensaEletronicaWidget(QMainWindow):
         else:
             Dialogs.warning(self, "Exportação de Dados", message)
 
-    def carregar_tabela(self):
+    def carregar_tabela(self): 
         filepath, _ = QFileDialog.getOpenFileName(self, "Abrir arquivo de tabela", "", "Tabelas (*.xlsx *.xls *.ods)")
         if filepath:
             try:
+                # Carrega os dados do arquivo Excel para um DataFrame
                 df = pd.read_excel(filepath)
-                self.validate_and_process_data(df)
+                print("Tabela carregada do Excel com sucesso.")
                 
-                # Verifica se a coluna 'situacao' existe
-                if 'situacao' in df.columns:
-                    pass  # Mantém a coluna 'situacao' como está
-                elif 'Status' in df.columns:
-                    # Se a coluna 'Status' existir, renomeia para 'situacao'
-                    df['situacao'] = df['Status']
-                    df.drop(columns=['Status'], inplace=True)
-                else:
-                    # Se nenhuma das colunas existir, adiciona 'situacao' com valor padrão 'Planejamento'
-                    df['situacao'] = 'Planejamento'
+                # Valida e processa os dados
+                self.validate_and_process_data(df)
 
-                # Lista de valores válidos para a coluna 'situacao'
-                valid_situations = ["Planejamento", "Aprovado", "Sessão Pública", "Homologado", "Empenhado", "Concluído", "Arquivado"]
+                # Converte o DataFrame para dicionários e insere no banco de dados
+                for _, row in df.iterrows():
+                    data = row.to_dict()
+                    self.model.insert_or_update_data(data)  # Usa o método do modelo para inserir ou atualizar
 
-                # Verifica se os valores na coluna 'situacao' são válidos, senão, define como 'Planejamento'
-                df['situacao'] = df['situacao'].apply(lambda x: x if x in valid_situations else 'Planejamento')
-
-                self.save_to_database(df)
+                # Notificação de sucesso
                 Dialogs.info(self, "Carregamento concluído", "Dados carregados com sucesso.")
             except Exception as e:
-                Dialogs.warning(self, "Erro ao carregar", str(e))
+                Dialogs.warning(self, "Erro ao carregar", f"Ocorreu um erro ao carregar a tabela: {str(e)}")
 
     def validate_and_process_data(self, df):
+        # Colunas obrigatórias
         required_columns = ['ID Processo', 'NUP', 'Objeto', 'uasg']
         if not all(col in df.columns for col in required_columns):
             missing_columns = [col for col in required_columns if col not in df.columns]
-            raise ValueError(f"Faltando: {', '.join(missing_columns)}")
-        df.rename(columns={'ID Processo': 'id_processo', 'NUP': 'nup', 'Objeto': 'objeto'}, inplace=True)
+            raise ValueError(f"As seguintes colunas estão ausentes: {', '.join(missing_columns)}")
+        
+        # Renomeia colunas para que correspondam ao esquema do banco de dados
+        df.rename(columns={
+            'ID Processo': 'id_processo',
+            'NUP': 'nup',
+            'Objeto': 'objeto'
+        }, inplace=True)
+
+        # Processamento de colunas específicas
         self.desmembramento_id_processo(df)
         self.salvar_detalhes_uasg_sigla_nome(df)
+
 
     def desmembramento_id_processo(self, df):
         df[['tipo', 'numero', 'ano']] = df['id_processo'].str.extract(r'(\D+)(\d+)/(\d+)')

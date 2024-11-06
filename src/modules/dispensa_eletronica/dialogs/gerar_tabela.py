@@ -23,46 +23,61 @@ class TabelaResumidaManager:
         self.df_resumido = pd.DataFrame()
 
     def carregar_dados(self):
-        """Carrega os dados do modelo PyQt e armazena em um DataFrame."""
-        # Obter os cabeçalhos das colunas
-        self.columns = [self.model.headerData(i, Qt.Orientation.Horizontal) for i in range(self.model.columnCount())]
-        
-        # Obter os dados do model
-        self.data = []  # Reinicia self.data para evitar acúmulo em chamadas subsequentes
-        for row in range(self.model.rowCount()):
-            row_data = []
-            for column in range(self.model.columnCount()):
-                index = self.model.index(row, column)
-                value = self.model.data(index)
-                row_data.append(value if value is not None else "")
-            self.data.append(row_data)
-        
-        # Criar um DataFrame com os dados e cabeçalhos
-        df = pd.DataFrame(self.data, columns=self.columns)
-        
-        # Criar um DataFrame resumido com os títulos corretos
-        self.df_resumido = df[['Status', 'ID Processo', 'NUP', 'Objeto', 'OM']].copy()
-        
-        # Atualizar os nomes das colunas
-        self.df_resumido.columns = ['Status', 'ID', 'NUP', 'Objeto', 'OM']
+        """Carrega os dados do modelo e armazena em um DataFrame."""
+        try:
+            print("Iniciando o carregamento de dados...")
+            print(f"Tipo de self.model: {type(self.model)}")
 
-        # Dicionário de ordenação para status
-        status_ordem = {
-            'Arquivado': 1,
-            'Concluído': 2,
-            'Empenhado': 3,
-            'Homologado': 4,
-            'Sessão Pública': 5,
-            'Aprovado': 6,
-            'Planejamento': 7
-        }
+            # Exibe uma lista dos atributos e métodos disponíveis no modelo
+            print("Atributos e métodos de self.model:")
+            print(dir(self.model))
 
-        # Mapear valores de 'Status' para 'Status_Value' e ordenar pelo valor
-        self.df_resumido['Status_Value'] = self.df_resumido['Status'].map(status_ordem).fillna(0)
-        self.df_resumido = self.df_resumido.sort_values(by='Status_Value', ascending=False).drop(columns=['Status_Value'])
+            # Verifique se `self.model` possui `headerData` e `columnCount`
+            if hasattr(self.model, 'headerData') and hasattr(self.model, 'columnCount'):
+                # Obter os cabeçalhos das colunas
+                self.columns = [self.model.headerData(i, Qt.Orientation.Horizontal) for i in range(self.model.columnCount())]
+                print(f"Colunas obtidas: {self.columns}")
+                
+                # Obter os dados do modelo linha por linha
+                self.data = []  # Reinicia self.data para evitar acúmulo
+                for row in range(self.model.rowCount()):
+                    row_data = []
+                    for column in range(self.model.columnCount()):
+                        index = self.model.index(row, column)
+                        value = self.model.data(index)
+                        row_data.append(value if value is not None else "")
+                    self.data.append(row_data)
+                
+                # Converte `self.data` para um DataFrame com as colunas capturadas
+                self.df = pd.DataFrame(self.data, columns=self.columns)
+                print("DataFrame criado com sucesso a partir de self.model.")
 
-        # Adicionar uma coluna de ordenação simples (1, 2, 3...)
-        self.df_resumido.insert(0, 'Nº', range(1, len(self.df_resumido) + 1))
+                # Mapeamento de nomes das colunas para os esperados
+                df = self.df.rename(columns={
+                    'situacao': 'Status',
+                    'id_processo': 'ID Processo',
+                    'nup': 'NUP',
+                    'objeto': 'Objeto',
+                    'sigla_om': 'OM'
+                })
+
+                # Filtrar e renomear as colunas para um DataFrame resumido
+                self.df_resumido = df[['Status', 'ID Processo', 'NUP', 'Objeto', 'OM']].copy()
+
+                # Ordenar e estruturar conforme necessário
+                status_ordem = {
+                    'Arquivado': 1, 'Concluído': 2, 'Empenhado': 3,
+                    'Homologado': 4, 'Sessão Pública': 5, 'Aprovado': 6, 'Planejamento': 7
+                }
+                self.df_resumido['Status_Value'] = self.df_resumido['Status'].map(status_ordem).fillna(0)
+                self.df_resumido = self.df_resumido.sort_values(by='Status_Value', ascending=False).drop(columns=['Status_Value'])
+                
+                # Adicionar a coluna de ordenação simples
+                self.df_resumido.insert(0, 'Nº', range(1, len(self.df_resumido) + 1))
+                print("Dados carregados e DataFrame resumido criado com sucesso.")
+
+        except Exception as e:
+            print(f"Erro ao carregar dados: {e}")
 
 
     def exportar_para_excel(self, output_path):
@@ -135,7 +150,14 @@ class TabelaResumidaManager:
         writer.close()
 
         return output_path
-    
+
+    def exportar_df_completo_para_excel(self, output_path):
+        writer = pd.ExcelWriter(output_path, engine='xlsxwriter')
+        self.df.to_excel(writer, sheet_name='Tabela Completa', startrow=0, index=False)
+        writer.close()
+
+        return output_path
+        
     def abrir_arquivo_excel(self, filepath):
         """
         Abre o arquivo Excel gerado usando o programa padrão do sistema operacional.

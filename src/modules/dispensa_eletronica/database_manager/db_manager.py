@@ -20,8 +20,6 @@ class DatabaseManager:
     def __init__(self, db_path):
         self.db_path = db_path
         self.connection = None
-        logging.basicConfig(level=logging.INFO, filename='app.log', filemode='a',
-                            format='%(name)s - %(levelname)s - %(message)s')
 
     def __enter__(self):
         self.connection = self.connect_to_database()
@@ -84,3 +82,8 @@ class DatabaseManager:
             # Converte cada linha em um dicionário com chaves sendo os nomes das colunas
             data = [dict(zip(columns, row)) for row in rows]
         return data
+
+    def delete_data(self, id_processo):
+        """Exclui um registro da tabela 'controle_dispensas' pelo id_processo."""
+        query = "DELETE FROM controle_dispensas WHERE id_processo = ?"
+        return self.execute_update(query, (id_processo,))

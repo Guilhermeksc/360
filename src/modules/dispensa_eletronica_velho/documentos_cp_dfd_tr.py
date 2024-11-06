@@ -5,7 +5,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
-from diretorios import *
+from src.config.diretorios import *
 # import fitz
 from docxtpl import DocxTemplate
 import pandas as pd

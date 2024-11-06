@@ -8,7 +8,7 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.patches import Patch
-from diretorios import ICONS_DIR
+from src.config.diretorios import ICONS_DIR
 
 class GraficTableDialog(QDialog):
     def __init__(self, parent=None):

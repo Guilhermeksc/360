@@ -7,7 +7,7 @@ from src.modules.dispensa_eletronica.dialogs.widget.documentos import Documentos
 import pandas as pd
 import sqlite3
 from pathlib import Path    
-from diretorios import load_config, CONTROLE_DADOS
+from src.config.diretorios import load_config, CONTROLE_DADOS
 # from src.modules.planejamento.utilidades_planejamento import DatabaseManager
 
 class EditDataDialog(QDialog):
