@@ -9,7 +9,7 @@ from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.setor_responsavel
 from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.contratacao import create_info_comprasnet
 from src.modules.utils.linha_layout import linha_divisoria_layout
 from src.modules.utils.select_om import create_selecao_om_layout, load_sigla_om, on_om_changed
-from src.modules.utils.agentes_responsaveis_layout import create_agentes_responsaveis_layout
+from src.modules.utils.agentes_responsaveis_layout import create_combo_box, carregar_agentes_responsaveis
 from pathlib import Path
 from src.config.paths import CONTROLE_DADOS
 import json
@@ -124,6 +124,14 @@ class EditarDadosWindow(QMainWindow):
         self.setWindowIcon(self.icons.get("edit", None))
         self.setFixedSize(1150, 780)
 
+        # Referências aos RadioButtons para material_servico, com_disputa e pesquisa_preco
+        self.radio_material = None
+        self.radio_servico = None
+        self.radio_disputa_sim = None
+        self.radio_disputa_nao = None
+        self.radio_pesquisa_sim = None
+        self.radio_pesquisa_nao = None
+
         # Configurações e widgets principais
         self.selected_button = None
         self.stacked_widget = QStackedWidget(self)
@@ -204,6 +212,76 @@ class EditarDadosWindow(QMainWindow):
             }
         }            
 
+    def create_agentes_responsaveis_layout(self, max_width=300):
+        """Cria o layout para os agentes responsáveis e o organiza em um QGroupBox estilizado."""
+        group_box = QGroupBox("Agentes Responsáveis")
+        group_box.setMaximumWidth(max_width)
+        group_box.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3C3C5A;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                color: white;
+                margin-top: 13px;
+            }
+            QGroupBox:title {
+                subcontrol-origin: margin;
+            }
+        """)
+
+        # Frame para organizar os agentes responsáveis
+        frame_agentes = QFrame()
+        agente_responsavel_layout = QVBoxLayout(frame_agentes)
+
+        # Criação dos ComboBox com ajuste de altura
+        self.ordenador_combo = create_combo_box('', [], 270, 58)
+        self.agente_fiscal_combo = create_combo_box('', [], 270, 58)
+        self.gerente_credito_combo = create_combo_box('', [], 270, 58)
+        self.responsavel_demanda_combo = create_combo_box('', [], 270, 58)
+        self.operador_dispensa_combo = create_combo_box('', [], 270, 58)
+
+        # Adicionando labels e ComboBox diretamente ao layout
+        labels_combos = [
+            ("Ordenador de Despesa:", self.ordenador_combo),
+            ("Agente Fiscal:", self.agente_fiscal_combo),
+            ("Gerente de Crédito:", self.gerente_credito_combo),
+            ("Responsável pela Demanda:", self.responsavel_demanda_combo),
+            ("Operador da Contratação:", self.operador_dispensa_combo)
+        ]
+
+        for label_text, combo_box in labels_combos:
+            h_layout = QVBoxLayout()
+            h_layout.setSpacing(0)
+            h_layout.setContentsMargins(0, 0, 0, 0)
+            label = QLabel(label_text)
+            label.setStyleSheet("color: #8AB4F7; font-size: 16px")
+            h_layout.addWidget(label)
+            h_layout.addWidget(combo_box)
+            agente_responsavel_layout.addLayout(h_layout)
+
+        # Carrega os agentes responsáveis para popular os ComboBoxes
+        carregar_agentes_responsaveis(self.database_path, {
+            "Ordenador de Despesa%": self.ordenador_combo,
+            "Agente Fiscal%": self.agente_fiscal_combo,
+            "Gerente de Crédito%": self.gerente_credito_combo,
+            "Operador%": self.operador_dispensa_combo,
+            "NOT LIKE": self.responsavel_demanda_combo
+        })
+
+        # Define o valor inicial de cada ComboBox com os dados passados em `data`
+        self.ordenador_combo.setCurrentText(self.dados.get('ordenador_despesas', ''))
+        self.agente_fiscal_combo.setCurrentText(self.dados.get('agente_fiscal', ''))
+        self.gerente_credito_combo.setCurrentText(self.dados.get('gerente_de_credito', ''))
+        self.responsavel_demanda_combo.setCurrentText(self.dados.get('responsavel_pela_demanda', ''))
+        self.operador_dispensa_combo.setCurrentText(self.dados.get('operador', ''))
+
+        # Adiciona o frame de agentes ao layout do group_box
+        group_layout = QVBoxLayout(group_box)
+        group_layout.addWidget(frame_agentes)
+
+        return group_box
+
 
     def save_data(self):
         # Coleta os dados dos widgets de contratação
@@ -220,11 +298,12 @@ class EditarDadosWindow(QMainWindow):
             'sequencial_pncp': self.sequencial_edit.text(),
             'objeto': self.objeto_edit.text(),
             'nup': self.nup_edit.text(),
-            # 'material_servico': 'Material' if self.contratacao_widgets['radio_material'].isChecked() else 'Serviço',
-            # 'vigencia': self.contratacao_widgets['vigencia_combo'].currentText(),
-            # 'criterio_julgamento': self.contratacao_widgets['criterio_combo'].currentText(),
-            # 'com_disputa': 'Sim' if self.contratacao_widgets['radio_disputa_sim'].isChecked() else 'Não',
-            # 'pesquisa_preco': 'Sim' if self.contratacao_widgets['radio_pesquisa_sim'].isChecked() else 'Não'
+            # Corrige para usar o valor dos RadioButtons
+            'material_servico': "Serviço" if self.radio_servico.isChecked() else "Material",
+            'vigencia': self.vigencia_combo.currentText(),
+            'criterio_julgamento': self.criterio_combo.currentText(),
+            'com_disputa': "Sim" if self.radio_disputa_sim.isChecked() else "Não",
+            'pesquisa_preco': "Sim" if self.radio_pesquisa_sim.isChecked() else "Não"
         }
         
         # Coleta os dados dos widgets de classificação orçamentária
@@ -249,6 +328,14 @@ class EditarDadosWindow(QMainWindow):
             'dias_recebimento': self.widget_setor_responsavel['dias_edit'].text(),
             'horario_recebimento': self.widget_setor_responsavel['horario_edit'].text(),
             'justificativa': self.widget_setor_responsavel['justificativa_edit'].toPlainText()
+        })
+
+        data_to_save.update({
+            'ordenador_despesas': self.ordenador_combo.currentText(),
+            'agente_fiscal': self.agente_fiscal_combo.currentText(),
+            'gerente_de_credito': self.gerente_credito_combo.currentText(),
+            'responsavel_pela_demanda': self.responsavel_demanda_combo.currentText(),
+            'operador': self.operador_dispensa_combo.currentText()
         })
         
         # Debug para verificar o conteúdo de data_to_save
@@ -286,7 +373,7 @@ class EditarDadosWindow(QMainWindow):
 
         # Configura o layout da consulta API
         self.group_box_consulta_api, self.cnpj_edit, self.sequencial_edit = setup_consulta_api(parent=self, icons=self.icons, data=self.dados)
-        self.group_box_agentes = create_agentes_responsaveis_layout(self.database_path)
+        self.group_box_agentes = self.create_agentes_responsaveis_layout()
         self.group_box_sessao = self.create_sessao_publica_group()
 
         # Cria um widget para o Right_layout e define o fundo preto
@@ -550,66 +637,62 @@ class EditarDadosWindow(QMainWindow):
         # Material e Serviço com seleção exclusiva usando RadioButtons
         material_servico_layout = QHBoxLayout()
         material_servico_label = QLabel("Material/Serviço:")
-        radio_material = QRadioButton("Material")
-        radio_servico = QRadioButton("Serviço")
+        self.radio_material = QRadioButton("Material")
+        self.radio_servico = QRadioButton("Serviço")
 
         # Grupo de botões exclusivo para Material e Serviço
-        material_servico_group = QButtonGroup()
-        material_servico_group.addButton(radio_material)
-        material_servico_group.addButton(radio_servico)
+        self.material_servico_group = QButtonGroup()
+        self.material_servico_group.addButton(self.radio_material)
+        self.material_servico_group.addButton(self.radio_servico)
 
         # Define o estado inicial
         material_servico = self.dados.get('material_servico', 'Material')
-        radio_servico.setChecked(material_servico == "Serviço")
-        radio_material.setChecked(material_servico == "Material")
+        self.radio_servico.setChecked(material_servico == "Serviço")
+        self.radio_material.setChecked(material_servico == "Material")
 
-        # Adiciona ao layout
         material_servico_layout.addWidget(material_servico_label)
-        material_servico_layout.addWidget(radio_material)
-        material_servico_layout.addWidget(radio_servico)
+        material_servico_layout.addWidget(self.radio_material)
+        material_servico_layout.addWidget(self.radio_servico)
         contratacao_layout.addLayout(material_servico_layout)
 
-        # Com Disputa
+        # Configuração dos RadioButtons para "Com Disputa"
         disputa_layout = QHBoxLayout()
         disputa_label = QLabel("Com disputa?")
-        radio_disputa_sim = QRadioButton("Sim")
-        radio_disputa_nao = QRadioButton("Não")
-        disputa_group = QButtonGroup()  # Grupo exclusivo para este conjunto
-        disputa_group.addButton(radio_disputa_sim)
-        disputa_group.addButton(radio_disputa_nao)
+        self.radio_disputa_sim = QRadioButton("Sim")
+        self.radio_disputa_nao = QRadioButton("Não")
+        self.disputa_group = QButtonGroup()
+        self.disputa_group.addButton(self.radio_disputa_sim)
+        self.disputa_group.addButton(self.radio_disputa_nao)
 
-        # Define o estado inicial com base nos dados, considerando ambos os botões
         com_disputa_value = self.dados.get('com_disputa', 'Sim')
-        radio_disputa_sim.setChecked(com_disputa_value == 'Sim')
-        radio_disputa_nao.setChecked(com_disputa_value == 'Não')
+        self.radio_disputa_sim.setChecked(com_disputa_value == 'Sim')
+        self.radio_disputa_nao.setChecked(com_disputa_value == 'Não')
 
         disputa_layout.addWidget(disputa_label)
-        disputa_layout.addWidget(radio_disputa_sim)
-        disputa_layout.addWidget(radio_disputa_nao)
+        disputa_layout.addWidget(self.radio_disputa_sim)
+        disputa_layout.addWidget(self.radio_disputa_nao)
         contratacao_layout.addLayout(disputa_layout)
 
-        # Pesquisa de Preço Concomitante
+        # Configuração dos RadioButtons para "Pesquisa Concomitante"
         pesquisa_layout = QHBoxLayout()
         pesquisa_label = QLabel("Pesquisa Concomitante?")
-        radio_pesquisa_sim = QRadioButton("Sim")
-        radio_pesquisa_nao = QRadioButton("Não")
-        pesquisa_group = QButtonGroup()  # Grupo exclusivo para este conjunto
-        pesquisa_group.addButton(radio_pesquisa_sim)
-        pesquisa_group.addButton(radio_pesquisa_nao)
+        self.radio_pesquisa_sim = QRadioButton("Sim")
+        self.radio_pesquisa_nao = QRadioButton("Não")
+        self.pesquisa_group = QButtonGroup()
+        self.pesquisa_group.addButton(self.radio_pesquisa_sim)
+        self.pesquisa_group.addButton(self.radio_pesquisa_nao)
 
-        # Define o estado inicial com base nos dados, considerando ambos os botões
         pesquisa_preco_value = self.dados.get('pesquisa_preco', 'Não')
-        radio_pesquisa_sim.setChecked(pesquisa_preco_value == 'Sim')
-        radio_pesquisa_nao.setChecked(pesquisa_preco_value == 'Não')
+        self.radio_pesquisa_sim.setChecked(pesquisa_preco_value == 'Sim')
+        self.radio_pesquisa_nao.setChecked(pesquisa_preco_value == 'Não')
 
         pesquisa_layout.addWidget(pesquisa_label)
-        pesquisa_layout.addWidget(radio_pesquisa_sim)
-        pesquisa_layout.addWidget(radio_pesquisa_nao)
+        pesquisa_layout.addWidget(self.radio_pesquisa_sim)
+        pesquisa_layout.addWidget(self.radio_pesquisa_nao)
         contratacao_layout.addLayout(pesquisa_layout)
 
         # Configura layout do GroupBox
         contratacao_group_box.setLayout(contratacao_layout)
-
         return contratacao_group_box
 
     def create_classificacao_orcamentaria_group(self):

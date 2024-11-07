@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         """Configurações básicas da janela principal."""
         self.setWindowTitle("Licitação 360")
         self.setWindowIcon(self.icons["brasil"])
-        self.resize(1050, 700)
+        # self.resize(1050, 700)
 
     # ====== CENTRAL WIDGET E MENU ======
 
@@ -80,13 +80,27 @@ class MainWindow(QMainWindow):
             button.setProperty("tooltipText", tooltip_text)  # Define o texto do tooltip como propriedade
             self.menu_layout.addWidget(button)
             self.buttons[icon_key] = button  # Armazena o botão para referência futura
-
+    
         # Cria um widget para o menu e adiciona o layout
         self.menu_widget = QWidget()
         self.menu_widget.setLayout(self.menu_layout)
         self.menu_widget.setStyleSheet("background-color: #13141F;")
         self.central_layout.addWidget(self.menu_widget)
 
+    def show_tooltip_with_arrow(self, text, button):
+        self.tooltip_label.setText(text)
+        self.tooltip_label.move(button.x() + button.width(), button.y())
+        self.tooltip_label.setVisible(True)
+
+        # Posiciona a seta
+        self.tooltip_arrow.move(self.tooltip_label.x() - 10, self.tooltip_label.y() + (self.tooltip_label.height() // 2) - 10)
+        self.tooltip_arrow.setVisible(True)
+
+    # Oculta ambos quando o tooltip desaparece
+    def hide_tooltip(self):
+        self.tooltip_label.setVisible(False)
+        self.tooltip_arrow.setVisible(False)
+        
     def eventFilter(self, obj, event):
         """Filtra eventos para exibir tooltips personalizados alinhados à direita dos botões do menu."""
         if event.type() == QEvent.Type.Enter and obj in self.buttons.values():
@@ -402,16 +416,3 @@ class MainWindow(QMainWindow):
     #     self.atas_contratos_widget = ContratosWidget(str(ICONS_DIR), self)
     #     self.content_layout.addWidget(self.atas_contratos_widget)
     #     print("Contratos widget added to layout")
-
-def load_stylesheet(app):
-    with open(STYLE_PATH, "r") as f:
-        app.setStyleSheet(f.read())
-
-def main():
-    app = QApplication(sys.argv)
-    load_stylesheet(app)  # Carrega o CSS no aplicativo
-    MainWindow(app).show()
-    sys.exit(app.exec())
-
-if __name__ == "__main__":
-    main()

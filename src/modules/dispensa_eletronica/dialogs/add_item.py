@@ -4,13 +4,13 @@ from PyQt6.QtCore import *
 from pathlib import Path
 from datetime import datetime
 import sqlite3
-from src.config.diretorios import CONTROLE_DADOS
 
 class AddItemDialog(QDialog):
-    def __init__(self, icons, database_path, parent=None):
+    def __init__(self, icons, database_path, controle_om, parent=None):
         super().__init__(parent)
         self.icons = icons
         self.database_path = database_path
+        self.controle_om = controle_om
         self.om_details = {}  # Inicializa como dicionário vazio para evitar erros
         self.setWindowTitle("Adicionar Item")
         self.setWindowIcon(self.icons["plus"])
@@ -96,26 +96,43 @@ class AddItemDialog(QDialog):
 
     def on_save(self):
         data = self.get_data()
-        if self.check_id_exists(data['id_processo']):
-            res = QMessageBox.question(self, "Confirmação", "ID do processo já existe. Deseja sobrescrever?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
-            if res == QMessageBox.StandardButton.Yes:
-                self.accept()  # Substitui o diálogo aceitar com a sobreposição
-        else:
-            self.accept()  # Aceita normalmente se o ID do processo não existir
+        try:
+            if self.check_id_exists(data['id_processo']):
+                res = QMessageBox.question(
+                    self, "Confirmação",
+                    "ID do processo já existe. Deseja sobrescrever?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                if res == QMessageBox.StandardButton.Yes:
+                    self.accept()  # Substitui o diálogo aceitar com a sobreposição
+            else:
+                self.accept()  # Aceita normalmente se o ID do processo não existir
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                QMessageBox.warning(self, "Erro", "A tabela 'controle_dispensas' não existe. Por favor, atualize a interface gráfica do módulo.")
+            else:
+                QMessageBox.warning(self, "Erro", f"Ocorreu um erro: {str(e)}")
 
     def check_id_exists(self, id_processo):
-        query = "SELECT COUNT(*) FROM controle_dispensas WHERE id_processo = ?"
-        with sqlite3.connect(self.database_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (id_processo,))
-            exists = cursor.fetchone()[0] > 0
-        return exists
+        query = "SELECT 1 FROM controle_dispensas WHERE id_processo = ?"
+        try:
+            with sqlite3.connect(self.database_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, (id_processo,))
+                return cursor.fetchone() is not None
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                QMessageBox.warning(self, "Erro", "A tabela 'controle_dispensas' não existe. Por favor, crie a tabela primeiro.")
+            else:
+                raise 
 
     def load_next_numero(self):
         try:
             with sqlite3.connect(self.database_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT MAX(numero) FROM controle_dispensas")
+                # Converte o campo `numero` em um inteiro para garantir a comparação correta
+                cursor.execute("SELECT MAX(CAST(numero AS INTEGER)) FROM controle_dispensas")
                 max_number = cursor.fetchone()[0]
                 next_number = 1 if max_number is None else int(max_number) + 1
                 self.numero_le.setText(str(next_number))
@@ -132,6 +149,9 @@ class AddItemDialog(QDialog):
 
         material_servico = "Material" if self.material_radio.isChecked() else "Serviço"
         tipo_de_processo = self.tipo_cb.currentText()
+        com_disputa = "Sim"  
+        pesquisa_preco = "Não"  
+        atividade_custeio = "Não"  
 
         data = {
             'tipo': tipo_de_processo,
@@ -142,7 +162,10 @@ class AddItemDialog(QDialog):
             'sigla_om': sigla_selected,
             'orgao_responsavel': orgao_responsavel,
             'uasg': uasg,
-            'material_servico': material_servico
+            'material_servico': material_servico,
+            'com_disputa': com_disputa,
+            'pesquisa_preco': pesquisa_preco,
+            'atividade_custeio': atividade_custeio
         }
 
         # Mapeamento do tipo de processo para o nome interno
@@ -161,9 +184,8 @@ class AddItemDialog(QDialog):
         return data
     
     def load_sigla_om(self):
-        self.database_om = CONTROLE_DADOS
         try:
-            with sqlite3.connect(self.database_om) as conn:
+            with sqlite3.connect(self.controle_om) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT DISTINCT sigla_om, orgao_responsavel, uasg FROM controle_om ORDER BY sigla_om")
                 self.om_details = {"CeIMBra": {"orgao_responsavel": "Centro de Intendência da Marinha em Brasília", "uasg": "787010"}}

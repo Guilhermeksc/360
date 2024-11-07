@@ -9,6 +9,9 @@ from src.modules.dispensa_eletronica.database_manager.db_manager import Database
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 import pandas as pd
+from src.config.paths import CONTROLE_DADOS
+import sqlite3
+import os
 
 class DispensaEletronicaController(QObject):
     def __init__(self, icons, view, model):
@@ -18,7 +21,7 @@ class DispensaEletronicaController(QObject):
         self.edit_data_dialog = None
         self.model_add = model
         self.model = model.setup_model("controle_dispensas")
-        self.database_path = model.database_manager.db_path
+        self.controle_om = CONTROLE_DADOS  # Atribui o caminho diretamente ao controle_om
         self.setup_connections()
 
     def setup_connections(self):
@@ -32,7 +35,7 @@ class DispensaEletronicaController(QObject):
 
     def handle_add_item(self):
         """Trata a ação de adicionar item."""
-        dialog = AddItemDialog(self.icons, self.model.database_manager.db_path, self.view)  # Passa o caminho do banco de dados
+        dialog = AddItemDialog(self.icons, self.model.database_manager.db_path, self.controle_om, self.view)  # Passa o caminho do banco de dados
         if dialog.exec():
             item_data = dialog.get_data()
             # Adiciona a situação padrão 'Planejamento' antes de salvar
@@ -75,11 +78,6 @@ class DispensaEletronicaController(QObject):
             print("Nenhum item selecionado para exclusão.")
             QMessageBox.warning(self.view, "Nenhuma Seleção", "Por favor, selecione um item para excluir.")
 
-    def handle_data_manager(self):
-        """Trata a ação de salvar a tabela e gerenciar as ações de dados."""
-        dialog = DataManager(self.icons, self.model)  
-        dialog.exec()
-
     def handle_save_charts(self):
         """Trata a ação de salvar gráficos."""
         dialog = GraficTableDialog(self.view)  # Supondo que GraficTableDialog está implementado
@@ -98,19 +96,108 @@ class DispensaEletronicaController(QObject):
         self.view.model.select()  # Recarrega os dados no modelo
 
     def handle_edit_item(self, data):
-        # Verifica se a janela já foi criada; caso contrário, cria uma nova
-        if not self.edit_data_dialog:
-            self.edit_data_dialog = EditarDadosWindow(data, self.view.icons, self.view)
-            self.edit_data_dialog.save_data_signal.connect(self.handle_save_data)
+        # Sempre cria uma nova instância de EditarDadosWindow para cada clique duplo
+        self.edit_data_dialog = EditarDadosWindow(data, self.icons, self.view)
+        self.edit_data_dialog.save_data_signal.connect(self.handle_save_data)
         
-        # Atualiza os dados caso seja necessário ao reabrir
-        self.edit_data_dialog.dados = data  
+        # Exibe a janela com os dados atualizados
         self.edit_data_dialog.show()
     
     def handle_save_data(self, data):
-        self.model.insert_or_update_data(data)
-        self.view.refresh_model()
+        try:
+            # Use `self.model_add` que se refere a uma instância de `DispensaEletronicaModel`
+            self.model_add.insert_or_update_data(data)
+            self.view.refresh_model()  # Atualiza a visualização da tabela
+        except AttributeError as e:
+            QMessageBox.warning(self.view, "Erro", f"Ocorreu um erro ao salvar os dados: {str(e)}")
 
+    def carregar_tabela(self):
+        filepath, _ = QFileDialog.getOpenFileName(self.view, "Abrir arquivo de tabela", "", "Tabelas (*.xlsx *.xls *.ods)")
+        if filepath:
+            try:
+                # Carrega o arquivo selecionado em um DataFrame
+                df = pd.read_excel(filepath)
+                self.validate_and_process_data(df)
+
+                # Insere ou atualiza os dados no banco de dados
+                for _, row in df.iterrows():
+                    data = row.to_dict()
+                    self.model_add.insert_or_update_data(data)
+                    self.view.refresh_model()
+                # Atualiza o modelo para refletir as alterações
+                self.model.select()
+                QMessageBox.information(self.view, "Carregamento concluído", "Dados carregados com sucesso.")
+            except Exception as e:
+                QMessageBox.warning(self.view, "Erro ao carregar", f"Ocorreu um erro ao carregar a tabela: {str(e)}")
+
+    def validate_and_process_data(self, df):
+        required_columns = ['ID Processo', 'NUP', 'Objeto', 'uasg']
+        if not all(col in df.columns for col in required_columns):
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            raise ValueError(f"As seguintes colunas estão ausentes: {', '.join(missing_columns)}")
+
+        df.rename(columns={'ID Processo': 'id_processo', 'NUP': 'nup', 'Objeto': 'objeto'}, inplace=True)
+        self.desmembramento_id_processo(df)
+        self.salvar_detalhes_uasg_sigla_nome(df)
+
+    def desmembramento_id_processo(self, df):
+        df[['tipo', 'numero', 'ano']] = df['id_processo'].str.extract(r'(\D+)(\d+)/(\d+)', expand=True)
+        df['tipo'] = df['tipo'].map({'DE ': 'Dispensa Eletrônica'}).fillna('Tipo Desconhecido')
+
+    def salvar_detalhes_uasg_sigla_nome(self, df):
+        print(f"[DEBUG] Conectando a {self.controle_om} para detalhes de UASG e Sigla")
+        with sqlite3.connect(self.controle_om) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT uasg, sigla_om, orgao_responsavel FROM controle_om")
+            om_details = {row[0]: {'sigla_om': row[1], 'orgao_responsavel': row[2]} for row in cursor.fetchall()}
+
+        df['sigla_om'] = df['uasg'].map(lambda x: om_details.get(x, {}).get('sigla_om', ''))
+        df['orgao_responsavel'] = df['uasg'].map(lambda x: om_details.get(x, {}).get('orgao_responsavel', ''))
+
+    def salvar_tabela_completa(self):
+        try:
+            self.model.select()
+            tabela_manager = TabelaResumidaManager(self.model)
+            tabela_manager.carregar_dados()
+            output_path = os.path.join(os.getcwd(), "tabela_completa.xlsx")
+            tabela_manager.exportar_df_completo_para_excel(output_path)
+            tabela_manager.abrir_arquivo_excel(output_path)
+        except PermissionError:
+            QMessageBox.warning(self.view, "Erro de Permissão", 
+                                "Feche o arquivo 'tabela_completa.xlsx' se ele estiver aberto e tente novamente.")
+
+    def salvar_tabela_resumida(self):
+        try:
+            self.model.select()
+            tabela_manager = TabelaResumidaManager(self.model)
+            tabela_manager.carregar_dados()
+            output_path = os.path.join(os.getcwd(), "tabela_resumida.xlsx")
+            tabela_manager.exportar_para_excel(output_path)
+            tabela_manager.abrir_arquivo_excel(output_path)
+        except PermissionError:
+            QMessageBox.warning(self.view, "Erro de Permissão", 
+                                "Feche o arquivo 'tabela_resumida.xlsx' se ele estiver aberto e tente novamente.")
+
+    def excluir_database(self):
+        reply = QMessageBox.question(self.view, "Confirmação de Exclusão",
+                                     "Tem certeza de que deseja excluir todos os dados?",
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                     QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            with self.model.database_manager as conn:
+                cursor = conn.cursor()
+                cursor.execute("DROP TABLE IF EXISTS controle_dispensas")
+                conn.commit()
+            QMessageBox.information(self.view, "Sucesso", "Tabela excluída com sucesso.")
+            self.view.refresh_model()
+            # self.model.select()  # Atualiza o modelo para refletir a exclusão
+
+    def handle_data_manager(self):
+        """Trata a ação de salvar a tabela e gerenciar as ações de dados."""
+        dialog = DataManager(self.icons, self.model, self, parent=self.view)
+        dialog.exec()
+        # self.model.select()
+        
 def show_warning_if_view_exists(view, title, message):
     if view is not None:
         QMessageBox.warning(view, title, message)

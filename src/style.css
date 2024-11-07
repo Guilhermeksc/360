@@ -15,6 +15,26 @@ QLabel, QPushButton, QTextEdit, QComboBox, QListWidget, QTreeWidget {
     border: none;
 }
 
+/* Estilo para botões Yes e No em QMessageBox */
+QMessageBox QPushButton {
+    background-color: #2C2F3F;
+    color: #8BE9D9;
+    border: 1px solid #3C3C5A;
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+QMessageBox QPushButton:hover {
+    background-color: #222236;
+    color: #FFFFFF;
+}
+
+QMessageBox QPushButton:pressed {
+    background-color: #3C3C5A;
+    color: #D4F8F2;
+}
+
 /* Estilo para QLineEdit */
 QLineEdit {
     color: #FFFFFF;

@@ -13,6 +13,9 @@ class InicioWidget(QWidget):
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
 
+        # Configurações de expansão para ajustar ao tamanho da janela
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
         # Título do projeto
         self.title_label = QLabel("Licitação 360")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -93,7 +96,6 @@ class InicioWidget(QWidget):
         description_label = QLabel(description)
         description_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignJustify)
         description_label.setWordWrap(True)
-        description_label.setFixedWidth(800)
         description_label.setStyleSheet("font-size: 16px; padding-left: 5px;")
         title_layout.addWidget(description_label)
 

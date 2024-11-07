@@ -5,7 +5,7 @@ from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 from PyQt6.QtSql import QSqlDatabase, QSqlTableModel, QSqlQuery
 from functools import partial
-
+import sqlite3  
 class DispensaEletronicaModel(QObject):
     def __init__(self, database_path, parent=None):
         super().__init__(parent)
@@ -53,7 +53,7 @@ class DispensaEletronicaModel(QObject):
                 objeto VARCHAR(100),
                 vigencia TEXT,
                 data_sessao DATE,
-                operador VARCHAR(100),
+                operador text,
                 criterio_julgamento TEXT,
                 com_disputa TEXT,
                 pesquisa_preco TEXT,
@@ -212,55 +212,63 @@ class DispensaEletronicaModel(QObject):
             data['situacao'] = 'Planejamento'
 
         # Executa a inserção ou atualização
-        with self.database_manager as conn:
-            cursor = conn.cursor()
-            cursor.execute(upsert_sql, (
-                data.get('situacao'), 
-                data.get('id_processo'), 
-                data.get('tipo'), 
-                data.get('numero'), 
-                data.get('ano'),
-                data.get('nup'),
-                data.get('material_servico'),                  
-                data.get('objeto'),
-                data.get('vigencia', '2 (dois) meses'),
-                data.get('uasg'),
-                data.get('orgao_responsavel'),
-                data.get('sigla_om'), 
-                data.get('setor_responsavel', ''), 
-                data.get('data_sessao', ''),
-                data.get('operador', ''),
-                data.get('criterio_julgamento', ''), 
-                data.get('com_disputa'),
-                data.get('pesquisa_preco'), 
-                data.get('atividade_custeio'),
-                data.get('previsao_contratacao', ''),
-                data.get('responsavel_pela_demanda', ''),
-                data.get('ordenador_despesas', ''), 
-                data.get('agente_fiscal', ''),
-                data.get('gerente_de_credito', ''),
-                data.get('cp', ''),
-                data.get('cod_par', ''),
-                data.get('prioridade_par', ''),
-                data.get('justificativa', ''),
-                data.get('cep', ''), 
-                data.get('endereco', ''),
-                data.get('email', ''),
-                data.get('telefone', ''),
-                data.get('dias_recebimento', ''),
-                data.get('horario_recebimento', ''),
-                data.get('valor_total', ''),
-                data.get('acao_interna', ''),
-                data.get('fonte_recursos', ''),
-                data.get('natureza_despesa', ''), 
-                data.get('unidade_orcamentaria', ''),
-                data.get('ptres', ''),
-                data.get('cnpj_matriz', '00394502000144'),
-                data.get('sequencial_pncp', ''),
-                data.get('link_pncp', ''),
-                data.get('comunicacao_padronizada', '')
-            ))
-            conn.commit()
+        try:
+            with self.database_manager as conn:
+                cursor = conn.cursor()
+                cursor.execute(upsert_sql, (
+                    data.get('situacao'), 
+                    data.get('id_processo'), 
+                    data.get('tipo'), 
+                    data.get('numero'), 
+                    data.get('ano'),
+                    data.get('nup'),
+                    data.get('material_servico'),                  
+                    data.get('objeto'),
+                    data.get('vigencia', '2 (dois) meses'),
+                    data.get('uasg'),
+                    data.get('orgao_responsavel'),
+                    data.get('sigla_om'), 
+                    data.get('setor_responsavel', ''), 
+                    data.get('data_sessao', ''),
+                    data.get('operador', ''),
+                    data.get('criterio_julgamento', ''), 
+                    data.get('com_disputa'),
+                    data.get('pesquisa_preco'), 
+                    data.get('atividade_custeio'),
+                    data.get('previsao_contratacao', ''),
+                    data.get('responsavel_pela_demanda', ''),
+                    data.get('ordenador_despesas', ''), 
+                    data.get('agente_fiscal', ''),
+                    data.get('gerente_de_credito', ''),
+                    data.get('cp', ''),
+                    data.get('cod_par', ''),
+                    data.get('prioridade_par', ''),
+                    data.get('justificativa', ''),
+                    data.get('cep', ''), 
+                    data.get('endereco', ''),
+                    data.get('email', ''),
+                    data.get('telefone', ''),
+                    data.get('dias_recebimento', ''),
+                    data.get('horario_recebimento', ''),
+                    data.get('valor_total', ''),
+                    data.get('acao_interna', ''),
+                    data.get('fonte_recursos', ''),
+                    data.get('natureza_despesa', ''), 
+                    data.get('unidade_orcamentaria', ''),
+                    data.get('ptres', ''),
+                    data.get('cnpj_matriz', '00394502000144'),
+                    data.get('sequencial_pncp', ''),
+                    data.get('link_pncp', ''),
+                    data.get('comunicacao_padronizada', '')
+                ))
+                conn.commit()
+
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                QMessageBox.warning(None, "Erro", "A tabela 'controle_dispensas' não existe. Por favor, crie a tabela primeiro.")
+                return
+            else:
+                QMessageBox.warning(None, "Erro", f"Ocorreu um erro ao tentar salvar os dados: {str(e)}")
 
 class CustomSqlTableModel(QSqlTableModel):
     def __init__(self, parent=None, db=None, database_manager=None, non_editable_columns=None):

@@ -48,10 +48,13 @@ class DispensaEletronicaWidget(QMainWindow):
     def on_table_double_click(self, index):
         row = self.proxy_model.mapToSource(index).row()
         id_processo = self.model.index(row, self.model.fieldIndex("id_processo")).data()
-        
-        dados = self.carregar_dados_por_id(id_processo)
-        if dados:
-            self.rowDoubleClicked.emit(dados)
+
+        # Carrega os dados e redefine `selected_row_data` a cada clique duplo
+        self.selected_row_data = self.carregar_dados_por_id(id_processo)
+        print (self.selected_row_data)
+        print (id_processo)
+        if self.selected_row_data:
+            self.rowDoubleClicked.emit(self.selected_row_data)
         else:
             QMessageBox.warning(self, "Erro", "Falha ao carregar dados para o ID do processo selecionado.")
 
