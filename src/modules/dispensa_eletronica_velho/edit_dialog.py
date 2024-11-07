@@ -1444,7 +1444,6 @@ class EditDataDialog(QDialog):
 
         # Adiciona o layout de status ao layout principal
         gerar_documentos_layout.addLayout(status_layout)
-
         
         icon_pdf = QIcon(str(self.ICONS_DIR / "pdf.png"))
         icon_copy = QIcon(str(self.ICONS_DIR / "copy.png"))

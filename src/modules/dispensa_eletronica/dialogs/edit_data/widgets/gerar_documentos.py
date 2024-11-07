@@ -33,9 +33,10 @@ def save_config(config):
 class ConsolidarDocumentos(QObject):
     status_atualizado = pyqtSignal(str, str)
   
-    def __init__(self, dados, status_label=None):
+    def __init__(self, dados, icons, status_label=None):
         super().__init__()  # Inicializa o QObject
         self.dados = dados
+        self.icons = icons
         self.config = load_config_path_id()
         self.pasta_base = Path(self.config.get('pasta_base', str(Path.home() / 'Desktop')))
 
@@ -43,7 +44,6 @@ class ConsolidarDocumentos(QObject):
         id_processo = self.dados.get('id_processo', 'desconhecido').replace("/", "-")
         objeto = self.dados.get('objeto', 'objeto_desconhecido').replace("/", "-")
         self.nome_pasta = f"{id_processo} - {objeto}"
-        self.ICONS_DIR = ICONS_DIR
 
         # Verifica se `dados` é um DataFrame
         if isinstance(self.dados, pd.DataFrame):
@@ -121,8 +121,8 @@ class ConsolidarDocumentos(QObject):
         gerar_documentos_layout = QVBoxLayout()
                 
         # Botões para gerar documentos
-        icon_pdf = QIcon(str(self.ICONS_DIR / "pdf.png"))
-        icon_copy = QIcon(str(self.ICONS_DIR / "copy.png"))
+        icon_pdf = QIcon(self.icons["pdf"])
+        icon_copy = QIcon(self.icons["pdf"])
 
         buttons_info = [
             ("Autorização para Abertura", handle_gerar_autorizacao, handle_gerar_autorizacao_sidgem),
@@ -139,7 +139,7 @@ class ConsolidarDocumentos(QObject):
                     icon=icon_pdf,
                     callback=visualizar_callback,
                     tooltip_text="Clique para visualizar o PDF",
-                    button_size=QSize(310, 40),
+                    button_size=QSize(310, 100),
                     icon_size=QSize(40, 40)
                 )
                 button_layout.addWidget(visualizar_pdf_button)

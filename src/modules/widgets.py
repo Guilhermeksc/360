@@ -19,6 +19,7 @@ from src.modules.dispensa_eletronica.models import DispensaEletronicaModel
 
 # Importações de controllers
 from src.modules.dispensa_eletronica.controller import DispensaEletronicaController
+from src.modules.dashboard.dashboard_controle import DashboardWidget
 
 __all__ = [
     # Views
@@ -27,6 +28,7 @@ __all__ = [
     # "PNCPWidget",
     # "PlanejamentoWidget",
     "DispensaEletronicaWidget",
+    "DashboardWidget",
     # "AtasWidget",
     # "ContratosWidget",
     

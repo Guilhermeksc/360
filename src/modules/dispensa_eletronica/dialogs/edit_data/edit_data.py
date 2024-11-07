@@ -148,7 +148,7 @@ class EditarDadosWindow(QMainWindow):
         self.pasta_base = Path(self.config.get('pasta_base', str(Path.home() / 'Desktop')))
 
         # Consolidador de documentos
-        self.consolidador = ConsolidarDocumentos(self.dados)
+        self.consolidador = ConsolidarDocumentos(self.dados, self.icons)
         self.consolidador.status_atualizado.connect(self.atualizar_status)
 
         # Label de status para mostrar atualizações de consolidação
@@ -797,7 +797,6 @@ class EditarDadosWindow(QMainWindow):
 
         # Configuração de parâmetros
         nome_pasta = f"{self.consolidador.id_processo.replace('/', '-')}_{self.consolidador.objeto.replace('/', '-')}"
-        icons_dir = self.consolidador.ICONS_DIR
         criar_e_abrir_pasta = self.consolidador.criar_e_abrir_pasta
         alterar_diretorio_base = self.consolidador.alterar_diretorio_base
         editar_modelo = self.consolidador.editar_modelo
@@ -811,12 +810,12 @@ class EditarDadosWindow(QMainWindow):
             handle_gerar_aviso_dispensa=self.consolidador.gerar_aviso_dispensa,
             handle_gerar_aviso_dispensa_sidgem=None  # Removido ou definido como None
         )
-        self.sigdem_group = create_GrupoSIGDEM(self.dados)
+        self.sigdem_group = create_GrupoSIGDEM(self.dados, self.icons)
 
         self.utilidade_group = create_utilidades_group(
             pasta_base=self.pasta_base,
             nome_pasta=nome_pasta,
-            icons_dir=icons_dir,
+            icons=self.icons,
             criar_e_abrir_pasta=criar_e_abrir_pasta,
             alterar_diretorio_base=alterar_diretorio_base,
             editar_modelo=editar_modelo

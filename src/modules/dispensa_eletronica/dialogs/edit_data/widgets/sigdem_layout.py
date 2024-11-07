@@ -4,7 +4,7 @@ from PyQt6.QtCore import *
 import pandas as pd
 from src.config.diretorios import *
 
-def create_GrupoSIGDEM(data):
+def create_GrupoSIGDEM(data, icons):
     """Função principal que cria o QGroupBox para o SIGDEM com assunto e sinopse configurados."""
     grupoSIGDEM = QGroupBox("SIGDEM")
     layout = QVBoxLayout(grupoSIGDEM)
@@ -23,9 +23,7 @@ def create_GrupoSIGDEM(data):
         }
     """)
     # Ícones para botões
-    icons = ICONS_DIR
-    icon_copy = QIcon(str(icons / "copy_1.png"))
-
+    icon_copy = QIcon(icons["copy_1"])
     # Campo "Assunto"
     layout.addWidget(create_label("No campo “Assunto”:", font_size="12pt"))
     textEditAssunto = create_text_edit(f"{data.get('id_processo')} - Abertura de Processo [{data.get('objeto')}]", max_height=60)
@@ -81,16 +79,18 @@ def copy_to_clipboard(text):
 def get_descricao_servico(data):
     return "aquisição de" if data.get("material_servico") == "Material" else "contratação de empresa especializada em"
 
-def create_utilidades_group(pasta_base, nome_pasta, icons_dir, criar_e_abrir_pasta, alterar_diretorio_base, editar_modelo):
+def create_utilidades_group(pasta_base, nome_pasta, icons, criar_e_abrir_pasta, alterar_diretorio_base, editar_modelo):
     """Função principal que cria o layout de utilidades com os botões configurados."""
     utilidades_layout = QHBoxLayout()
     utilidades_layout.setSpacing(0)
     utilidades_layout.setContentsMargins(0, 0, 0, 0)
 
+    icon_pdf = QIcon(icons["pdf"])
+
     # Criação dos botões e adição ao layout
     criar_pasta_button = create_utilidade_button(
         text="Criar e Abrir Pasta",
-        icon_path=icons_dir / "create-folder.png",
+        icon_path=icon_pdf,
         callback=criar_e_abrir_pasta,
         tooltip_text="Clique para criar a estrutura de pastas e abrir"
     )
@@ -98,7 +98,7 @@ def create_utilidades_group(pasta_base, nome_pasta, icons_dir, criar_e_abrir_pas
 
     editar_registro_button = create_utilidade_button(
         text="Local de Salvamento",
-        icon_path=icons_dir / "zip-folder.png",
+        icon_path=icon_pdf,
         callback=alterar_diretorio_base,
         tooltip_text="Clique para alterar o local de salvamento dos arquivos"
     )
@@ -106,7 +106,7 @@ def create_utilidades_group(pasta_base, nome_pasta, icons_dir, criar_e_abrir_pas
 
     visualizar_pdf_button = create_utilidade_button(
         text="Editar Modelos",
-        icon_path=icons_dir / "template.png",
+        icon_path=icon_pdf,
         callback=editar_modelo,
         tooltip_text="Clique para editar os modelos dos documentos"
     )

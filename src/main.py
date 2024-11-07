@@ -30,7 +30,10 @@ class MainWindow(QMainWindow):
         """Configurações básicas da janela principal."""
         self.setWindowTitle("Licitação 360")
         self.setWindowIcon(self.icons["brasil"])
-        # self.resize(1050, 700)
+        
+        # Posiciona a janela no canto superior esquerdo
+        screen_geometry = self.screen().geometry()
+        self.move(screen_geometry.left(), screen_geometry.top())
 
     # ====== CENTRAL WIDGET E MENU ======
 
@@ -69,6 +72,7 @@ class MainWindow(QMainWindow):
             ("ata", "ata_hover", "Atas", self.show_atas),
             ("contract", "contract_hover", "Contratos", self.show_contratos),
             ("plan", "plan_hover", "Planejamento", self.show_planejamento),
+            ("dash", "dash_hover", "Dashboard", self.show_dashboard),
             ("config", "config_hover", "Configurações", self.show_config),
         ]
 
@@ -187,6 +191,17 @@ class MainWindow(QMainWindow):
 
     def show_planejamento(self):
         self.content_stack.setCurrentWidget(self.planejamento_widget)
+
+    def show_dashboard(self):
+        # Limpa a área de conteúdo antes de adicionar novos widgets
+        self.clear_content_area()
+
+        # Instancia o widget de dashboard e adiciona à área de conteúdo
+        dashboard_widget = DashboardWidget(self.icons)
+        self.content_layout.addWidget(dashboard_widget)
+
+        # Define o botão do dashboard como ativo
+        self.set_active_button(self.buttons["dash"])
 
     def show_config(self):
         """Configura o layout de configuração com um menu lateral."""
