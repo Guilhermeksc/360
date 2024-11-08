@@ -123,6 +123,9 @@ class EditarDadosWindow(QMainWindow):
         self.setWindowTitle("Editar Dados")
         self.setWindowIcon(self.icons.get("edit", None))
         self.setFixedSize(1150, 780)
+        
+        # Posicionar a janela no canto superior esquerdo da tela
+        self.move(0, 0)
 
         # Referências aos RadioButtons para material_servico, com_disputa e pesquisa_preco
         self.radio_material = None
@@ -211,6 +214,12 @@ class EditarDadosWindow(QMainWindow):
                 'Nao': 'Não', 'nao': 'Não'
             }
         }            
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.close()
+        else:
+            super().keyPressEvent(event)
 
     def create_agentes_responsaveis_layout(self, max_width=300):
         """Cria o layout para os agentes responsáveis e o organiza em um QGroupBox estilizado."""
@@ -317,17 +326,18 @@ class EditarDadosWindow(QMainWindow):
             'atividade_custeio': 'Sim' if self.radio_custeio_sim.isChecked() else 'Não'
         })
 
+
         data_to_save.update({
-            'cp': self.widget_setor_responsavel['cp_edit'].text(),
-            'cod_par': self.widget_setor_responsavel['par_edit'].text(),
-            'prioridade_par': self.widget_setor_responsavel['prioridade_combo'].currentText(),
-            'endereco': self.widget_setor_responsavel['endereco_edit'].text(),
-            'cep': self.widget_setor_responsavel['cep_edit'].text(),
-            'email': self.widget_setor_responsavel['email_edit'].text(),
-            'telefone': self.widget_setor_responsavel['telefone_edit'].text(),
-            'dias_recebimento': self.widget_setor_responsavel['dias_edit'].text(),
-            'horario_recebimento': self.widget_setor_responsavel['horario_edit'].text(),
-            'justificativa': self.widget_setor_responsavel['justificativa_edit'].toPlainText()
+            'comunicacao_padronizada': self.cp_edit.text(),
+            'cod_par': self.par_edit.text(),
+            'prioridade_par': self.prioridade_combo.currentText(),
+            'endereco': self.endereco_edit.text(),
+            'email': self.email_edit.text(),
+            'cep': self.cep_edit.text(),
+            'telefone': self.telefone_edit.text(),
+            'dias_recebimento': self.dias_edit.text(),
+            'horario_recebimento': self.horario_edit.text(),
+            'justificativa': self.justificativa_edit.toPlainText()
         })
 
         data_to_save.update({
@@ -783,10 +793,90 @@ class EditarDadosWindow(QMainWindow):
         
         return classificacao_orcamentaria_group_box
 
+    def create_dados_responsavel_contratacao_group(self):
+        """Cria o layout para o responsável pela contratação usando programação funcional."""
+        layout = QVBoxLayout()
+
+        par_layout = QHBoxLayout()
+     
+        cp_label = QLabel("Número da CP:")
+        self.cp_edit = QLineEdit(str(self.dados.get('comunicacao_padronizada', '')))
+        par_layout.addWidget(cp_label)
+        par_layout.addWidget(self.cp_edit)
+        layout.addLayout(par_layout)
+
+        par_label = QLabel("Meta do PAR:")
+        self.par_edit = QLineEdit(str(self.dados.get('cod_par', '')))
+        par_layout.addWidget(par_label)
+        par_layout.addWidget(self.par_edit)
+        layout.addLayout(par_layout)
+
+        prioridade = QLabel("Prioridade:")
+        self.prioridade_combo = QComboBox()
+        self.prioridade_combo.addItems(["Necessário", "Urgente", "Desejável"])
+        self.prioridade_combo.setCurrentText(self.dados.get('prioridade_par', 'Necessário'))
+        par_layout.addWidget(prioridade)
+        par_layout.addWidget(self.prioridade_combo)        
+        layout.addLayout(par_layout)
+                
+        # Endereço
+        endereco = QLabel("Endereço:")
+        self.endereco_edit = QLineEdit(self.dados.get('endereco', ''))
+        endereco_cep_layout = QHBoxLayout()
+        endereco_cep_layout.addWidget(endereco)
+        endereco_cep_layout.addWidget(self.endereco_edit)
+        layout.addLayout(endereco_cep_layout)
+ 
+        # E-mail
+        email = QLabel("E-mail:")
+        self.email_edit = QLineEdit(self.dados.get('email', ''))
+        email_layout = QHBoxLayout()
+        email_layout.addWidget(email)
+        email_layout.addWidget(self.email_edit)
+        layout.addLayout(email_layout)
+
+        # CEP e Telefone
+        cep_telefone_layout = QHBoxLayout()
+        cep_label = QLabel("CEP:")
+        self.cep_edit = QLineEdit(str(self.dados.get('cep', '')))
+        cep_telefone_layout.addWidget(cep_label)
+        cep_telefone_layout.addWidget(self.cep_edit)
+
+        telefone_label = QLabel("Telefone:")
+        self.telefone_edit = QLineEdit(self.dados.get('telefone', ''))
+        cep_telefone_layout.addWidget(telefone_label)
+        cep_telefone_layout.addWidget(self.telefone_edit)
+        layout.addLayout(cep_telefone_layout)
+
+
+        # Dias e Horário para Recebimento
+        dias_layout = QHBoxLayout()
+        dias_label = QLabel("Dias para Recebimento:")
+        self.dias_edit = QLineEdit(self.dados.get('dias_recebimento', 'Segunda à Sexta'))
+        dias_layout.addWidget(dias_label)
+        dias_layout.addWidget(self.dias_edit)
+        layout.addLayout(dias_layout)
+
+        horario_layout = QHBoxLayout()
+        horario_label = QLabel("Horário para Recebimento:")
+        self.horario_edit = QLineEdit(self.dados.get('horario_recebimento', '09 às 11h20 e 14 às 16h30'))
+        horario_layout.addWidget(horario_label)
+        horario_layout.addWidget(self.horario_edit)
+        layout.addLayout(horario_layout)
+
+        # Justificativa
+        justificativa_label = QLabel("Justificativa para a contratação:")
+        justificativa_label.setStyleSheet("font-size: 12pt;")
+        self.justificativa_edit = QTextEdit(self.dados.get("justificativa", ""))
+        layout.addWidget(justificativa_label)
+        layout.addWidget(self.justificativa_edit)
+        
+        return layout
+    
     def stacked_widget_responsaveis(self, data):
         frame = QFrame()
         layout = QVBoxLayout()
-        self.setor_responsavel_layout, self.widget_setor_responsavel = create_dados_responsavel_contratacao_group(data)
+        self.setor_responsavel_layout = self.create_dados_responsavel_contratacao_group()
         layout.addLayout(self.setor_responsavel_layout)
         frame.setLayout(layout)
         return frame
@@ -794,46 +884,277 @@ class EditarDadosWindow(QMainWindow):
     def stacked_widget_documentos(self, data):
         frame = QFrame()
         layout = QVBoxLayout()
+        # Cria e adiciona o QGroupBox "Dados do Setor Responsável pela Contratação"
+        botao_documentos = self.create_gerar_documentos_group()
+        sigdem_group = self.create_GrupoSIGDEM()
+        utilidade_group = self.create_utilidades_group()
+        layout.addLayout(botao_documentos)
+        layout.addWidget(sigdem_group)
+        layout.addLayout(utilidade_group)
 
-        # Configuração de parâmetros
-        nome_pasta = f"{self.consolidador.id_processo.replace('/', '-')}_{self.consolidador.objeto.replace('/', '-')}"
-        criar_e_abrir_pasta = self.consolidador.criar_e_abrir_pasta
-        alterar_diretorio_base = self.consolidador.alterar_diretorio_base
-        editar_modelo = self.consolidador.editar_modelo
-
-        # Chama `create_gerar_documentos_group` sem passar o parâmetro `consolidador`
-        self.gerar_documentos = self.consolidador.create_gerar_documentos_group(
-            handle_gerar_autorizacao=self.consolidador.gerar_autorizacao,
-            handle_gerar_autorizacao_sidgem=None,  # Removido ou definido como None
-            handle_gerar_comunicacao_padronizada=self.consolidador.gerar_comunicacao_padronizada,
-            handle_gerar_comunicacao_padronizada_sidgem=None,  # Removido ou definido como None
-            handle_gerar_aviso_dispensa=self.consolidador.gerar_aviso_dispensa,
-            handle_gerar_aviso_dispensa_sidgem=None  # Removido ou definido como None
-        )
-        self.sigdem_group = create_GrupoSIGDEM(self.dados, self.icons)
-
-        self.utilidade_group = create_utilidades_group(
-            pasta_base=self.pasta_base,
-            nome_pasta=nome_pasta,
-            icons=self.icons,
-            criar_e_abrir_pasta=criar_e_abrir_pasta,
-            alterar_diretorio_base=alterar_diretorio_base,
-            editar_modelo=editar_modelo
-        )
-
-        # Adiciona o layout gerado ao layout principal
-        layout.addLayout(self.gerar_documentos)
-        layout.addWidget(self.sigdem_group)
-        layout.addLayout(self.utilidade_group)
-        frame.setLayout(layout)
+        # Define o layout para o frame
+        frame.setLayout(layout)        
         return frame
     
+    def create_gerar_documentos_group(self):
+        gerar_documentos_layout = QVBoxLayout()
+
+        icon_pdf = QIcon(self.icons["pdf"])
+        icon_copy = QIcon(self.icons["copy_1"])
+
+        buttons_info = [
+            ("          Autorização para Abertura      ", self.handle_gerar_autorizacao, self.handle_gerar_autorizacao_sidgem),
+            (" Comunicação Padronizada e anexos", self.handle_gerar_comunicacao_padronizada, self.handle_gerar_comunicacao_padronizada_sidgem),
+            ("              Aviso de Dispensa               ", self.handle_gerar_aviso_dispensa, self.handle_gerar_aviso_dispensa_sidgem)
+        ]
+
+        for text, visualizar_callback, sigdem_callback in buttons_info:
+            button_layout = QHBoxLayout()
+
+            visualizar_pdf_button = self.create_button(
+                text,
+                icon=icon_pdf,
+                callback=visualizar_callback,
+                tooltip_text="Clique para visualizar o PDF",
+                button_size=QSize(310, 40),
+                icon_size=QSize(40, 40)
+            )
+
+            sigdem_button = self.create_button(
+                "",
+                icon=icon_copy,
+                callback=sigdem_callback,
+                tooltip_text="Clique para copiar",
+                button_size=QSize(40, 40),
+                icon_size=QSize(30, 30)
+            )
+
+            button_layout.addWidget(visualizar_pdf_button)
+            button_layout.addWidget(sigdem_button)
+
+            gerar_documentos_layout.addLayout(button_layout)
+
+        return gerar_documentos_layout
+
+    def create_GrupoSIGDEM(self):       
+        grupoSIGDEM = QGroupBox("SIGDEM")
+        layout = QVBoxLayout(grupoSIGDEM)
+
+        icon_copy = QIcon(self.icons["copy_1"])
+
+        self.id_processo = self.dados.get('id_processo', 'desconhecido')
+        self.objeto = self.dados.get('objeto', 'objeto_desconhecido')
+        self.tipo = self.dados.get('tipo', 'desconhecido')
+        self.numero = self.dados.get('numero', 'desconhecido')
+        self.ano = self.dados.get('ano', 'desconhecido')
+        self.nup = self.dados.get('nup', 'desconhecido')
+
+        labelAssunto = QLabel("No campo “Assunto”:")
+        layout.addWidget(labelAssunto)
+        self.textEditAssunto = QTextEdit(f"{self.id_processo} - Abertura de Processo ({self.objeto})")
+        self.textEditAssunto.setMaximumHeight(60)
+        layoutHAssunto = QHBoxLayout()
+        layoutHAssunto.addWidget(self.textEditAssunto)
+        btnCopyAssunto = self.create_button(
+            text="", icon=icon_copy, 
+            callback=lambda: self.copyToClipboard(self.textEditAssunto.toPlainText()), 
+            tooltip_text="Copiar texto para a área de transferência", 
+            button_size=QSize(40, 40), 
+            icon_size=QSize(25, 25)
+            )
+        layoutHAssunto.addWidget(btnCopyAssunto)
+        layout.addLayout(layoutHAssunto)
+
+        labelSinopse = QLabel("No campo “Sinopse”:")
+        layout.addWidget(labelSinopse)
+        self.textEditSinopse = QTextEdit(
+            f"Termo de Abertura referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
+        )
+        self.textEditSinopse.setMaximumHeight(140)
+        layoutHSinopse = QHBoxLayout()
+        layoutHSinopse.addWidget(self.textEditSinopse)
+        btnCopySinopse = self.create_button(text="", icon=icon_copy, callback=lambda: self.copyToClipboard(self.textEditSinopse.toPlainText()), tooltip_text="Copiar texto para a área de transferência", button_size=QSize(40, 40), icon_size=QSize(25, 25))
+        layoutHSinopse.addWidget(btnCopySinopse)
+        layout.addLayout(layoutHSinopse)
+
+        grupoSIGDEM.setLayout(layout)
+        # self.carregarAgentesResponsaveis()
+        
+        return grupoSIGDEM
+
+    def get_descricao_servico(self):
+        material_servico = "Material" if self.radio_material.isChecked() else "Serviço"
+        return "aquisição de" if material_servico == "Material" else "contratação de empresa especializada em"
+
+    def copyToClipboard(self, text):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+        QToolTip.showText(QCursor.pos(), "Texto copiado para a área de transferência.", msecShowTime=1500)
+
+    def criar_e_abrir_pasta(self):
+        # Cria a estrutura de pastas
+        self.consolidador.verificar_e_criar_pastas(self.pasta_base / self.nome_pasta)
+        
+        # Após criar, tenta abrir a pasta
+        self.abrir_pasta(self.pasta_base / self.nome_pasta)
+        # self.status_atualizado.emit("Pastas encontradas", str(self.ICONS_DIR / "folder_v.png"))
+
+    def abrir_pasta(self, pasta_path):
+        if pasta_path.exists() and pasta_path.is_dir():
+            # Abre a pasta no explorador de arquivos usando QDesktopServices
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(pasta_path)))
+        else:
+            QMessageBox.warning(self, "Erro", "A pasta selecionada não existe ou não é um diretório.")
+
+    def create_utilidades_group(self):
+        utilidades_layout = QHBoxLayout()
+        utilidades_layout.setSpacing(0)
+        utilidades_layout.setContentsMargins(0, 0, 0, 0)
+
+        icon_criar_pasta = QIcon(self.icons["create-folder"])
+        icon_salvar_pasta = QIcon(self.icons["zip-folder"])
+        icon_template = QIcon(self.icons["template"])
+
+        # Verifique se pasta_base está corretamente inicializada
+        if not hasattr(self, 'pasta_base') or not isinstance(self.pasta_base, Path):
+            self.pasta_base = Path(self.config.get('pasta_base', str(Path.home() / 'Documentos')))  # Exemplo de inicialização
+
+        # Define um nome padrão para a pasta (ou modifique conforme necessário)
+        self.nome_pasta = f'{self.id_processo.replace("/", "-")} - {self.objeto.replace("/", "-")}'
+
+        # Botão para criar a estrutura de pastas e abrir a pasta
+        criar_pasta_button = self.create_button(
+            "Criar e Abrir Pasta", 
+            icon=icon_criar_pasta, 
+            callback=self.criar_e_abrir_pasta,  # Chama a função que cria e abre a pasta
+            tooltip_text="Clique para criar a estrutura de pastas e abrir", 
+            button_size=QSize(210, 40), 
+            icon_size=QSize(40, 40)
+        )
+        utilidades_layout.addWidget(criar_pasta_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # Botão para abrir o arquivo de registro
+        editar_registro_button = self.create_button(
+            "Local de Salvamento", 
+            icon=icon_salvar_pasta, 
+            callback=self.consolidador.alterar_diretorio_base, 
+            tooltip_text="Clique para alterar o local de salvamento dos arquivos", 
+            button_size=QSize(210, 40), icon_size=QSize(40, 40)
+            )
+        utilidades_layout.addWidget(editar_registro_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        # Botão para abrir o arquivo de registro
+        visualizar_pdf_button = self.create_button(
+            "Editar Modelos", 
+            icon=icon_template, 
+            callback=self.consolidador.editar_modelo, 
+            tooltip_text="Clique para editar os modelos dos documentos", 
+            button_size=QSize(210, 40), icon_size=QSize(40, 40)
+            )
+        
+        utilidades_layout.addWidget(visualizar_pdf_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        return utilidades_layout
+
+    def create_button(self, text="", icon=None, callback=None, tooltip_text="", button_size=None, icon_size=None):
+        btn = QPushButton(text)
+        if icon:
+            btn.setIcon(icon)
+            btn.setIconSize(icon_size if icon_size else QSize(40, 40))
+        if button_size:
+            btn.setFixedSize(button_size)
+        btn.setToolTip(tooltip_text)
+        if callback:
+            btn.clicked.connect(callback)  # Conecta o callback ao evento de clique
+        return btn
+    
+    def atualizar_status_label(self, status_message, icon_path):
+        # Atualiza o texto do status_label com a mensagem passada
+        self.status_label.setText(status_message)
+
+        # Atualiza o ícone
+        icon_folder = QIcon(icon_path)
+        icon_pixmap = icon_folder.pixmap(30, 30)  # Define o tamanho do ícone
+        self.icon_label.setPixmap(icon_pixmap)
+
+        # Opcional: Mude a cor do texto de status (se necessário)
+        self.status_label.setStyleSheet("font-size: 14px;")
+
+    def handle_gerar_autorizacao(self):
+        self.assunto_text = f"{self.id_processo} - Abertura de Processo ({self.objeto})"
+        self.sinopse_text = (
+            f"Termo de Abertura referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel}"
+        )
+        self.update_text_fields()
+        self.consolidador.gerar_autorizacao()
+
+        # # Emite o sinal passando a mensagem de status e o ícone de sucesso (folder_v.png)
+        # self.status_atualizado.emit("Pastas encontradas", str(self.ICONS_DIR / "folder_v.png"))
+
+    def handle_gerar_autorizacao_sidgem(self):
+        self.assunto_text = f"{self.id_processo} - Abertura de Processo ({self.objeto})"
+        self.sinopse_text = (
+            f"Termo de Abertura referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel}"
+        )
+        self.update_text_fields()
+
+    def handle_gerar_comunicacao_padronizada(self):
+        self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
+        self.sinopse_text = (
+            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel}"
+        )
+        self.update_text_fields()
+        self.consolidador.gerar_comunicacao_padronizada()
+
+    def handle_gerar_comunicacao_padronizada_sidgem(self):
+        self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
+        self.sinopse_text = (
+            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel}"
+        )
+        self.update_text_fields()
+
+    def handle_gerar_aviso_dispensa(self):
+        self.assunto_text = f"{self.id_processo} - Aviso ({self.objeto})"
+        self.sinopse_text = (
+            f"Aviso referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel}"
+        )
+        self.update_text_fields()
+        self.consolidador.gerar_aviso_dispensa()
+
+    def handle_gerar_aviso_dispensa_sidgem(self):
+        self.assunto_text = f"{self.id_processo} - Aviso ({self.objeto})"
+        self.sinopse_text = (
+            f"Aviso referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel}"
+        )
+        self.update_text_fields()
+
+    def update_text_fields(self):
+        self.textEditAssunto.setPlainText(self.assunto_text)
+        self.textEditSinopse.setPlainText(self.sinopse_text)
+
     def stacked_widget_anexos(self, data):
         frame = QFrame()
         layout = QVBoxLayout()
-        label = QLabel("Conteúdo de Anexos")
-        layout.addWidget(label)
-        frame.setLayout(layout)
+
+        # Cria e adiciona o QGroupBox "Dados do Setor Responsável pela Contratação"
+        anexos_group = self.create_anexos_group()
+        layout.addWidget(anexos_group)
+
+        # Define o layout para o frame
+        frame.setLayout(layout)        
         return frame
 
     def stacked_widget_pncp(self, data):
@@ -1130,3 +1451,296 @@ class EditarDadosWindow(QMainWindow):
         except Exception as e:
             print(f"Erro ao preencher os dados: {str(e)}")
             QMessageBox.critical(self, "Erro", f"Falha ao preencher os dados: {str(e)}")
+
+    def handle_gerar_autorizacao(self):
+        self.assunto_text = f"{self.id_processo} - Abertura de Processo ({self.objeto})"
+        self.sinopse_text = (
+            f"Termo de Abertura referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
+        )
+        self.update_text_fields()
+        self.consolidador.gerar_autorizacao()
+
+        # Emite o sinal passando a mensagem de status e o ícone de sucesso (folder_v.png)
+        self.status_atualizado.emit("Pastas encontradas", str(self.icons["folder_v"]))
+
+    def handle_gerar_autorizacao_sidgem(self):
+        self.assunto_text = f"{self.id_processo} - Abertura de Processo ({self.objeto})"
+        self.sinopse_text = (
+            f"Termo de Abertura referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
+        )
+        self.update_text_fields()
+
+    def handle_gerar_comunicacao_padronizada(self):
+        self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
+        self.sinopse_text = (
+            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
+        )
+        self.update_text_fields()
+        self.consolidador.gerar_comunicacao_padronizada()
+
+    def handle_gerar_comunicacao_padronizada_sidgem(self):
+        self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
+        self.sinopse_text = (
+            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
+        )
+        self.update_text_fields()
+
+    def handle_gerar_aviso_dispensa(self):
+        self.assunto_text = f"{self.id_processo} - Aviso ({self.objeto})"
+        self.sinopse_text = (
+            f"Aviso referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
+        )
+        self.update_text_fields()
+        self.consolidador.gerar_aviso_dispensa()
+
+    def handle_gerar_aviso_dispensa_sidgem(self):
+        self.assunto_text = f"{self.id_processo} - Aviso ({self.objeto})"
+        self.sinopse_text = (
+            f"Aviso referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Processo Administrativo NUP: {self.nup}\n"
+            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
+        )
+        self.update_text_fields()
+
+    def update_text_fields(self):
+        self.textEditAssunto.setPlainText(self.assunto_text)
+        self.textEditSinopse.setPlainText(self.sinopse_text)
+
+
+    def create_anexos_group(self):
+        # LineEdit para o ID de Dispensa Eletrônica
+        self.id_dispensa_eletronica = self.dados.get('id_processo', '')
+        id_display = self.id_dispensa_eletronica if self.id_dispensa_eletronica else 'ID não disponível'
+
+        # GroupBox para Anexos
+        anexos_group_box = QGroupBox(f"Anexos da {id_display}")
+
+        # Layout principal do GroupBox
+        anexo_layout = QVBoxLayout()
+        
+        self.anexos_dict = {}
+
+        # Função auxiliar para adicionar seções de anexos
+        def add_anexo_section(section_title, *anexos):
+            section_label = QLabel(section_title)
+            anexo_layout.addWidget(section_label)
+            self.anexos_dict[section_title] = []
+
+            for anexo in anexos:
+                layout = QHBoxLayout()
+
+                # Caminho e tooltip
+                pasta_anexo = self.define_pasta_anexo(section_title, anexo)
+                tooltip_text = self.define_tooltip_text(section_title, anexo)
+
+                # Verificação de arquivo PDF
+                icon_label = QLabel()
+                icon = self.get_icon_for_anexo(pasta_anexo)
+                icon_label.setPixmap(icon.pixmap(QSize(25, 25)))
+                layout.addWidget(icon_label)
+                layout.addSpacerItem(QSpacerItem(10, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum))
+
+                # Botão para abrir a pasta
+                btnabrirpasta = self.create_open_folder_button(pasta_anexo, tooltip_text)
+                layout.addWidget(btnabrirpasta)
+
+                # Label do anexo
+                anexo_label = QLabel(anexo)
+                layout.addWidget(anexo_label)
+                layout.addSpacerItem(QSpacerItem(10, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum))
+                layout.addStretch()
+
+                self.anexos_dict[section_title].append((anexo, icon_label))
+                anexo_layout.addLayout(layout)
+
+        # Adiciona seções de anexos
+        add_anexo_section("Documento de Formalização de Demanda (DFD)", "Anexo A - Relatório do Safin", "Anexo B - Especificações")
+        add_anexo_section("Termo de Referência (TR)", "Anexo - Pesquisa de Preços")
+        add_anexo_section("Declaração de Adequação Orçamentária", "Anexo - Relatório do PDM/CATSER")
+
+        justificativa_label = QLabel("Justificativas relevantes")
+        anexo_layout.addWidget(justificativa_label)
+
+        # Botões de Ação
+        self.add_buttons_to_layout(anexo_layout)
+
+        # Definição do layout final e do GroupBox
+        anexos_group_box.setLayout(anexo_layout)
+
+        return anexos_group_box
+
+    def define_pasta_anexo(self, section_title, anexo):
+        """Define o caminho da pasta de anexo baseado no título da seção e nome do anexo."""
+        id_processo_modificado = self.id_processo.replace("/", "-")
+        objeto_modificado = self.objeto.replace("/", "-")
+
+        if section_title == "Documento de Formalização de Demanda (DFD)":
+            if "Anexo A" in anexo:
+                return self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin'
+            elif "Anexo B" in anexo:
+                return self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade'
+        elif section_title == "Termo de Referência (TR)":
+            return self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços'
+        elif section_title == "Declaração de Adequação Orçamentária":
+            return self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser'
+        return None
+
+    def define_tooltip_text(self, section_title, anexo):
+        """Retorna o texto da tooltip para um anexo."""
+        if section_title == "Documento de Formalização de Demanda (DFD)":
+            if "Anexo A" in anexo:
+                return "Abrir pasta Anexo A - Relatório do Safin"
+            elif "Anexo B" in anexo:
+                return "Abrir pasta Anexo B - Especificações e Quantidade"
+        elif section_title == "Termo de Referência (TR)":
+            return "Abrir pasta Pesquisa de Preços"
+        elif section_title == "Declaração de Adequação Orçamentária":
+            return "Abrir pasta Relatório do PDM-Catser"
+        return "Abrir pasta"
+
+    def get_icon_for_anexo(self, pasta_anexo):
+        icon_confirm = QIcon(self.icons["concluido"])
+        icon_cancel = QIcon(self.icons["cancel"])
+        if pasta_anexo and self.verificar_arquivo_pdf(pasta_anexo):
+            return icon_confirm
+        return icon_cancel
+
+    def verificar_arquivo_pdf(self, pasta):
+        arquivos_pdf = []
+        if not pasta.exists():
+            print(f"Pasta não encontrada: {pasta}")
+            return None
+        for arquivo in pasta.iterdir():
+            if arquivo.suffix.lower() == ".pdf":
+                arquivos_pdf.append(arquivo)
+                # print(f"Arquivo PDF encontrado: {arquivo.name}")
+        if arquivos_pdf:
+            return max(arquivos_pdf, key=lambda p: p.stat().st_mtime)  # Retorna o PDF mais recente
+        return None
+    
+    def create_open_folder_button(self, pasta_anexo, tooltip_text):
+        icon_abrir_pasta = QIcon(self.icons["open-folder"])
+        btnabrirpasta = self.create_button(
+            "", icon=icon_abrir_pasta, callback=lambda _, p=pasta_anexo: self.abrir_pasta(p),
+            tooltip_text=tooltip_text, button_size=QSize(25, 25), icon_size=QSize(25, 25)
+        )
+        btnabrirpasta.setToolTipDuration(0)
+        return btnabrirpasta
+
+    def add_buttons_to_layout(self, layout):
+        icon_browser = QIcon(self.icons["browser"])
+        icon_refresh = QIcon(self.icons["refresh"])       
+
+        add_pdf_button = self.create_button(
+            " Visualizar Anexos",
+            icon_browser,
+            self.add_pdf_to_merger,
+            "Visualizar anexos PDFs",
+            QSize(220, 40), QSize(30, 30)
+        )
+
+        atualizar_button = self.create_button(
+            "   Atualizar Pastas  ",
+            icon_refresh,
+            self.atualizar_action,
+            "Atualizar os dados",
+            QSize(220, 40), QSize(30, 30)
+        )
+
+        button_layout_anexo = QHBoxLayout()
+        button_layout_anexo.addStretch()
+        button_layout_anexo.addWidget(add_pdf_button)
+        button_layout_anexo.addStretch()
+
+        button_layout_atualizar = QHBoxLayout()
+        button_layout_atualizar.addStretch()
+        button_layout_atualizar.addWidget(atualizar_button)
+        button_layout_atualizar.addStretch()
+
+        layout.addLayout(button_layout_anexo)
+        layout.addLayout(button_layout_atualizar)
+
+    def add_pdf_to_merger(self):
+        cp_number = self.cp_edit.text()
+        if cp_number:
+            pastas_necessarias = self.verificar_e_criar_pastas(self.pasta_base)
+            pdf_add_dialog = PDFAddDialog(self.df_registro_selecionado, self.ICONS_DIR, pastas_necessarias, self.pasta_base, self)
+            if pdf_add_dialog.exec():
+                print(f"Adicionar PDF para CP nº {cp_number}")
+            else:
+                print("Ação de adicionar PDF cancelada.")
+        else:
+            QMessageBox.warning(self, "Erro", "Por favor, insira um número de CP válido.")
+
+    def atualizar_action(self):
+        icon_confirm = QIcon(str(self.ICONS_DIR / "concluido.png"))
+        icon_x = QIcon(str(self.ICONS_DIR / "cancel.png"))
+
+        def atualizar_anexo(section_title, anexo, label):
+            pasta_anexo = None
+            id_processo_modificado = self.id_processo.replace("/", "-")
+            objeto_modificado = self.objeto.replace("/", "-")
+
+            if section_title == "Documento de Formalização de Demanda (DFD)":
+                if "Anexo A" in anexo:
+                    pasta_anexo = self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin'
+                elif "Anexo B" in anexo:
+                    pasta_anexo = self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade'
+            elif section_title == "Termo de Referência (TR)":
+                pasta_anexo = self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços'
+            elif section_title == "Declaração de Adequação Orçamentária":
+                pasta_anexo = self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser'
+
+            if pasta_anexo:
+                print(f"Verificando pasta: {pasta_anexo}")
+                arquivos_pdf = self.verificar_arquivo_pdf(pasta_anexo)
+                icon = icon_confirm if arquivos_pdf else icon_x
+                label.setPixmap(icon.pixmap(QSize(25, 25)))
+            else:
+                print(f"Anexo não identificado: {anexo}")
+                label.setPixmap(icon_x.pixmap(QSize(25, 25)))
+
+        for section_title, anexos in self.anexos_dict.items():
+            for anexo, icon_label in anexos:
+                atualizar_anexo(section_title, anexo, icon_label)
+
+        self.dados_atualizados.emit()
+
+    def verificar_e_criar_pastas(self, pasta_base):
+        try:
+            id_processo_modificado = self.id_processo.replace("/", "-")
+            objeto_modificado = self.objeto.replace("/", "-")
+            base_path = pasta_base / f'{id_processo_modificado} - {objeto_modificado}'
+
+            pastas_necessarias = [
+                pasta_base / '1. Autorizacao',
+                pasta_base / '2. CP e anexos',
+                pasta_base / '3. Aviso',
+                pasta_base / '2. CP e anexos' / 'DFD',
+                pasta_base / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin',
+                pasta_base / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade',
+                pasta_base / '2. CP e anexos' / 'TR',
+                pasta_base / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços',
+                pasta_base / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária',
+                pasta_base / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser',
+                pasta_base / '2. CP e anexos' / 'Justificativas Relevantes',
+            ]
+
+            for pasta in pastas_necessarias:
+                if not pasta.exists():
+                    pasta.mkdir(parents=True)
+
+        except (FileNotFoundError, PermissionError) as e:
+            QMessageBox.critical(self, "Erro ao criar pastas", f"Não foi possível criar as pastas necessárias devido ao erro: {str(e)}. Por favor, selecione uma nova pasta base na aba 'Documentos'.")
+            
+        return pastas_necessarias

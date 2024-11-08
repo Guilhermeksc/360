@@ -89,4 +89,13 @@ def load_icons():
         "sg3": load_icon("sg3.png"),
         "cb": load_icon("cb.png"),
         "mn": load_icon("mn.png"),
+        "create-folder": load_icon("create-folder.png"),
+        "zip-folder": load_icon("zip-folder.png"),
+        "template": load_icon("template.png"),
+        "cancel": load_icon("cancel.png"),
+        "open-folder": load_icon("open-folder.png"),
+        "browser": load_icon("browser.png"),
+        "open_icon": load_icon("open_icon.png"),
+        "refresh": load_icon("refresh.png"),
+
                 }

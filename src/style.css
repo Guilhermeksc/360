@@ -201,3 +201,53 @@ QButtonGroup QPushButton:checked {
     color: #181928;
     border: 1px solid #D4F8F2;
 }
+
+/* Estilo da barra de rolagem */
+QScrollBar:vertical, QScrollBar:horizontal {
+    background-color: #2C2F3F;
+    width: 12px;
+    height: 12px;
+    margin: 2px;
+    border-radius: 5px;
+}
+
+/* Estilo do handle da barra de rolagem */
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background-color: #8BE9D9;
+    min-height: 20px;
+    min-width: 20px;
+    border-radius: 5px;
+}
+
+/* Efeito ao passar o mouse sobre o handle */
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+    background-color: #D4F8F2;
+}
+
+/* Setas da barra de rolagem */
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    background-color: #181928;
+    border: 1px solid #3C3C5A;
+    width: 15px;
+    height: 15px;
+    /* subcontrol-origin: margin; */
+}
+
+/* Efeito ao passar o mouse sobre as setas */
+QScrollBar::add-line:vertical:hover, QScrollBar::sub-line:vertical:hover,
+QScrollBar::add-line:horizontal:hover, QScrollBar::sub-line:horizontal:hover {
+    background-color: #222236;
+}
+
+/* Remover setas quando não são necessárias */
+QScrollBar::add-line:vertical:disabled, QScrollBar::sub-line:vertical:disabled,
+QScrollBar::add-line:horizontal:disabled, QScrollBar::sub-line:horizontal:disabled {
+    background: none;
+}
+
+/* Remover espaço vazio acima e abaixo da barra */
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none;
+}

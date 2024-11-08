@@ -18,6 +18,7 @@ from num2words import num2words
 from datetime import datetime
 import subprocess
 from fpdf import FPDF
+
 class PDFAddDialog(QDialog):
 
     def __init__(self, df_registro_selecionado, icons_dir, pastas_necessarias, pasta_base, parent=None):

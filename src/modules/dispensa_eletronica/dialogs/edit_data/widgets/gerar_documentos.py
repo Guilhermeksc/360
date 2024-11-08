@@ -16,6 +16,7 @@ import json
 from docxtpl import DocxTemplate
 import win32com.client
 from PyPDF2 import PdfMerger
+from src.config.paths import TEMPLATE_DISPENSA_DIR
 
 CONFIG_FILE = 'config.json'
 
@@ -114,77 +115,6 @@ class ConsolidarDocumentos(QObject):
         # Verifica se todas as pastas necessárias existem
         pastas_existentes = all(pasta.exists() for pasta in pastas_necessarias)
         return pastas_existentes
-
-    def create_gerar_documentos_group(self, handle_gerar_autorizacao, handle_gerar_autorizacao_sidgem,
-                                      handle_gerar_comunicacao_padronizada, handle_gerar_comunicacao_padronizada_sidgem,
-                                      handle_gerar_aviso_dispensa, handle_gerar_aviso_dispensa_sidgem):
-        gerar_documentos_layout = QVBoxLayout()
-                
-        # Botões para gerar documentos
-        icon_pdf = QIcon(self.icons["pdf"])
-        icon_copy = QIcon(self.icons["pdf"])
-
-        buttons_info = [
-            ("Autorização para Abertura", handle_gerar_autorizacao, handle_gerar_autorizacao_sidgem),
-            ("Comunicação Padronizada e anexos", handle_gerar_comunicacao_padronizada, handle_gerar_comunicacao_padronizada_sidgem),
-            ("Aviso de Dispensa", handle_gerar_aviso_dispensa, handle_gerar_aviso_dispensa_sidgem)
-        ]
-
-        for text, visualizar_callback, sigdem_callback in buttons_info:
-            button_layout = QHBoxLayout()
-            
-            if visualizar_callback:
-                visualizar_pdf_button = self.create_button(
-                    text=text,
-                    icon=icon_pdf,
-                    callback=visualizar_callback,
-                    tooltip_text="Clique para visualizar o PDF",
-                    button_size=QSize(310, 100),
-                    icon_size=QSize(40, 40)
-                )
-                button_layout.addWidget(visualizar_pdf_button)
-                
-            if sigdem_callback:
-                sigdem_button = self.create_button(
-                    text="",
-                    icon=icon_copy,
-                    callback=sigdem_callback,
-                    tooltip_text="Clique para copiar",
-                    button_size=QSize(40, 40),
-                    icon_size=QSize(30, 30)
-                )
-                button_layout.addWidget(sigdem_button)
-
-            gerar_documentos_layout.addLayout(button_layout)
-        
-        return gerar_documentos_layout
-    
-    def create_button(self, text, icon, callback, tooltip_text, button_size, icon_size):
-        # Criar o botão e definir o tamanho
-        button = QPushButton()
-        button.setFixedSize(button_size)
-        button.setToolTip(tooltip_text)
-        button.clicked.connect(callback)
-
-        # Criar um widget para o layout
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-
-        # Criar o ícone e adicionar ao layout
-        icon_label = QLabel()
-        icon_label.setPixmap(icon.pixmap(icon_size))
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(icon_label)
-
-        # Criar o texto e adicionar ao layout
-        text_label = QLabel(text)
-        text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(text_label)
-
-        # Adicionar o widget ao botão
-        button.setLayout(layout)
-        
-        return button
     
     def editar_modelo(self, button_font_size=18, icon_size=QSize(40, 40)):
         dialog = QDialog()
@@ -195,8 +125,8 @@ class ConsolidarDocumentos(QObject):
         dialog.setWindowIcon(icon_confirm)
 
         # Ícones para os botões
-        icon_index = QIcon(str(self.ICONS_DIR / "pdf.png"))  # Ícone para "Abrir índice"
-        icon_open = QIcon(str(self.ICONS_DIR / "open_icon.png"))  # Ícone para os demais botões "Abrir"
+        icon_index = QIcon(self.icons["pdf"])
+        icon_open = QIcon(self.icons["open_icon"])  # Ícone para os demais botões "Abrir"
 
         # Layout principal do diálogo
         main_layout = QVBoxLayout(dialog)
@@ -371,9 +301,9 @@ class ConsolidarDocumentos(QObject):
             parte_decimal = int(round((valor_float - parte_inteira) * 100))
 
             if parte_decimal > 0:
-                valor_extenso = f"{num2words(parte_inteira, lang='pt_BR')} reais e {num2words(parte_decimal, lang='pt_BR')} centavos"
+                valor_extenso = f"{num2words.num2words(parte_inteira, lang='pt_BR')} reais e {num2words(parte_decimal, lang='pt_BR')} centavos"
             else:
-                valor_extenso = f"{num2words(parte_inteira, lang='pt_BR')} reais"
+                valor_extenso = f"{num2words.num2words(parte_inteira, lang='pt_BR')} reais"
 
             # Corrige "um reais" para "um real"
             valor_extenso = valor_extenso.replace("um reais", "um real")
@@ -480,10 +410,6 @@ class ConsolidarDocumentos(QObject):
         return context
 
     def gerarDocumento(self, template_type, subfolder_name, file_description):
-        if self.df_registro_selecionado.empty:
-            QMessageBox.warning(None, "Seleção Necessária", "Por favor, selecione um registro na tabela antes de gerar um documento.")
-            return
-
         template_filename = f"template_{template_type}.docx"
         template_path, save_path = self.setup_document_paths(template_filename, subfolder_name, file_description)
 
@@ -495,7 +421,7 @@ class ConsolidarDocumentos(QObject):
 
         with open(str(template_path), 'rb') as template_file:
             doc = DocxTemplate(template_file)
-            context = self.df_registro_selecionado.to_dict('records')[0]
+            context = self.dados
             context = self.prepare_context(context)
             doc.render(context)
             doc.save(str(save_path))
@@ -503,15 +429,28 @@ class ConsolidarDocumentos(QObject):
 
     def setup_document_paths(self, template_filename, subfolder_name, file_description):
         template_path = TEMPLATE_DISPENSA_DIR / template_filename
-        id_processo = self.df_registro_selecionado['id_processo'].iloc[0].replace('/', '-')
-        objeto = self.df_registro_selecionado['objeto'].iloc[0]
+        
+        # Verifique o tipo de self.dados e extraia id_processo e objeto conforme o tipo
+        if isinstance(self.dados, pd.DataFrame):
+            id_processo = self.dados['id_processo'].iloc[0].replace('/', '-')
+            objeto = self.dados['objeto'].iloc[0]
+        elif isinstance(self.dados, dict):
+            id_processo = self.dados.get('id_processo', 'desconhecido').replace('/', '-')
+            objeto = self.dados.get('objeto', 'objeto_desconhecido')
+        else:
+            raise ValueError("O tipo de 'dados' não é suportado. Esperado DataFrame ou dict.")
+        
         self.nome_pasta = f"{id_processo} - {objeto}"
+        
         if 'pasta_base' not in self.config:
             self.alterar_diretorio_base()
+            
         pasta_base = Path(self.config['pasta_base']) / self.nome_pasta / subfolder_name
         pasta_base.mkdir(parents=True, exist_ok=True)
+        
         save_path = pasta_base / f"{id_processo} - {file_description}.docx"
         return template_path, save_path
+
 
     def verificar_pastas(self, pasta_base):
         id_processo_modificado = self.id_processo.replace("/", "-")
