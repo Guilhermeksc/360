@@ -32,8 +32,7 @@ def on_search_text_changed(text, proxy_model):
 
 def setup_search_bar(icons, layout, proxy_model):
     search_label = QLabel()
-    # search_label.setPixmap(icons["magnifying-glass"].pixmap(30, 30))  # Ícone de tamanho 20x20
-    search_label.setPixmap(icons["plus"].pixmap(30, 30))  # Ícone de tamanho 20x20
+    search_label.setPixmap(icons["magnifying-glass"].pixmap(30, 30))  # Ícone de tamanho 20x20
     layout.addWidget(search_label)
     # search_label = QLabel("Localizar:")
     # search_label.setStyleSheet("""

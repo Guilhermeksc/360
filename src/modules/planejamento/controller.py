@@ -118,7 +118,7 @@ class LicitacaoController(QObject):
         self.view.model.select()  # Recarrega os dados no modelo
 
     def handle_edit_item(self, data):
-        # Verifica se a tabela correspondente a `data` existe no banco de dados
+        # Extrai informações para compor o nome da tabela
         cnpj_matriz = data.get("cnpj_matriz")
         sequencial_pncp = data.get("sequencial_pncp")
         ano = str(data.get("ano", "0000"))[-4:]  # Captura apenas os 4 últimos dígitos do ano
@@ -141,7 +141,8 @@ class LicitacaoController(QObject):
                     
                     # Calcula `total_homologado`
                     cursor.execute(f'SELECT SUM(valorTotalHomologado) FROM "{table_name}" WHERE valorTotalHomologado IS NOT NULL')
-                    total_homologado = cursor.fetchone()[0] or 0
+                    total_homologado = cursor.fetchone()[0]
+                    total_homologado = total_homologado if total_homologado is not None else None
                     print(f"Somatório de valorTotalHomologado: {total_homologado}")
 
                     # Conta `situacaoCompraItemNome` com valores específicos
@@ -151,6 +152,7 @@ class LicitacaoController(QObject):
                         WHERE situacaoCompraItemNome IN ("Anulado/Revogado/Cancelado", "Fracassado")
                     ''')
                     count_anulado_fracassado = cursor.fetchone()[0]
+                    count_anulado_fracassado = count_anulado_fracassado if count_anulado_fracassado > 0 else None
                     print(f"Quantidade de itens 'Anulado/Revogado/Cancelado' ou 'Fracassado': {count_anulado_fracassado}")
 
                     # Conta `situacaoCompraItemResultadoNome` com valor "Informado"
@@ -160,21 +162,25 @@ class LicitacaoController(QObject):
                         WHERE situacaoCompraItemResultadoNome = "Informado"
                     ''')
                     count_informado = cursor.fetchone()[0]
+                    count_informado = count_informado if count_informado > 0 else None
                     print(f"Quantidade de itens com situacaoCompraItemResultadoNome 'Informado': {count_informado}")
                     
                 else:
                     print(f"Erro: A tabela '{table_name}' não foi encontrada no banco de dados.")
+                    total_homologado, count_anulado_fracassado, count_informado = None, None, None
                     
         except sqlite3.Error as e:
             print(f"Erro ao consultar a tabela no banco de dados: {e}")
-            total_homologado, count_anulado_fracassado, count_informado = 0, 0, 0
+            total_homologado, count_anulado_fracassado, count_informado = None, None, None
 
         # Passa os valores para a instância de EditarDadosWindow
-        self.edit_data_dialog = EditarDadosWindow(data, self.icons, total_homologado, count_anulado_fracassado, count_informado, self.view)
-        # self.edit_data_dialog = EditarDadosWindow(data, self.icons, self.view)
+        self.edit_data_dialog = EditarDadosWindow(
+            data, self.icons, total_homologado, count_anulado_fracassado, count_informado, self.view
+        )
         self.edit_data_dialog.save_data_signal.connect(self.handle_save_data)
         self.view.connect_editar_dados_window(self.edit_data_dialog)  # Conecta sinais
         self.edit_data_dialog.show()
+
     
     def handle_save_data(self, data):
         try:
