@@ -2,7 +2,7 @@ import sys
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
-from src.config.paths import STYLE_PATH, ICONS_DIR, IMAGES_DIR, DATA_DISPENSA_ELETRONICA_PATH
+from src.config.paths import STYLE_PATH, ICONS_DIR, IMAGES_DIR, DATA_DISPENSA_ELETRONICA_PATH, DATA_LICITACAO_PATH
 from src.config.styles.styless import get_menu_button_style, get_menu_button_activated_style
 from src.modules.widgets import *
 from src.config.dialogs import * 
@@ -190,7 +190,23 @@ class MainWindow(QMainWindow):
         # self.content_stack.setCurrentWidget(self.contratos_widget)
 
     def show_planejamento(self):
-        self.content_stack.setCurrentWidget(self.planejamento_widget)
+        self.clear_content_area()
+        
+        # Instancia o modelo de Dispensa Eletrônica com o caminho do banco de dados
+        self.licitacao_model = LicitacaoModel(DATA_LICITACAO_PATH)
+        
+        # Configura o modelo SQL
+        sql_model = self.licitacao_model.setup_model("controle_licitacao", editable=True)
+        
+        # Cria o widget de Dispensa Eletrônica e passa o modelo SQL e o caminho do banco de dados
+        self.licitacao_widget = LicitacaoWidget(self.icons, sql_model, self.licitacao_model.database_licitacao_manager.db_path)
+
+        # Cria o controlador e passa o widget e o modelo
+        self.licitacao_controller = LicitacaoController(self.icons, self.licitacao_widget, self.licitacao_model)
+
+        # Adiciona o widget de Dispensa Eletrônica na área de conteúdo
+        self.content_layout.addWidget(self.licitacao_widget)
+        self.set_active_button(self.buttons["plan"])
 
     def show_dashboard(self):
         # Limpa a área de conteúdo antes de adicionar novos widgets

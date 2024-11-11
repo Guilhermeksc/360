@@ -99,4 +99,5 @@ def load_icons():
         "refresh": load_icon("refresh.png"),
         "confirm_green": load_icon("confirm_green.png"),
         "checked": load_icon("checked.png"),
+        "test": load_icon("testing.png"),
                 }

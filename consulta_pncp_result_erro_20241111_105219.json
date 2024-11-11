@@ -1,0 +1,250 @@
+{
+    "status": "sucesso",
+    "dados_informacoes": [
+        [
+            "valorTotalEstimado",
+            8867.82
+        ],
+        [
+            "valorTotalHomologado",
+            7012.9
+        ],
+        [
+            "orcamentoSigilosoCodigo",
+            1
+        ],
+        [
+            "orcamentoSigilosoDescricao",
+            "Compra sem sigilo"
+        ],
+        [
+            "numeroControlePNCP",
+            "00394502000144-1-013056/2024"
+        ],
+        [
+            "linkSistemaOrigem",
+            null
+        ],
+        [
+            "linkProcessoEletronico",
+            null
+        ],
+        [
+            "anoCompra",
+            2024
+        ],
+        [
+            "sequencialCompra",
+            13056
+        ],
+        [
+            "numeroCompra",
+            "90056"
+        ],
+        [
+            "processo",
+            "63402001988202405"
+        ],
+        [
+            "orgaoEntidade.cnpj",
+            "00394502000144"
+        ],
+        [
+            "orgaoEntidade.razaoSocial",
+            "COMANDO DA MARINHA"
+        ],
+        [
+            "orgaoEntidade.esferaId",
+            "F"
+        ],
+        [
+            "orgaoEntidade.poderId",
+            "E"
+        ],
+        [
+            "unidadeOrgao.codigoUnidade",
+            "787010"
+        ],
+        [
+            "unidadeOrgao.nomeUnidade",
+            "CENTRO DE INTENDÊNCIA DA MARINHA EM BRASÍLIA"
+        ],
+        [
+            "unidadeOrgao.municipioNome",
+            "Brasília"
+        ],
+        [
+            "unidadeOrgao.codigoIbge",
+            "5300108"
+        ],
+        [
+            "unidadeOrgao.ufSigla",
+            "DF"
+        ],
+        [
+            "unidadeOrgao.ufNome",
+            "Distrito Federal"
+        ],
+        [
+            "orgaoSubRogado",
+            null
+        ],
+        [
+            "unidadeSubRogada",
+            null
+        ],
+        [
+            "modalidadeId",
+            8
+        ],
+        [
+            "modalidadeNome",
+            "Dispensa"
+        ],
+        [
+            "justificativaPresencial",
+            null
+        ],
+        [
+            "modoDisputaId",
+            4
+        ],
+        [
+            "modoDisputaNome",
+            "Dispensa Com Disputa"
+        ],
+        [
+            "tipoInstrumentoConvocatorioCodigo",
+            2
+        ],
+        [
+            "tipoInstrumentoConvocatorioNome",
+            "Aviso de Contratação Direta"
+        ],
+        [
+            "amparoLegal.codigo",
+            19
+        ],
+        [
+            "amparoLegal.nome",
+            "Lei 14.133/2021, Art. 75, II"
+        ],
+        [
+            "amparoLegal.descricao",
+            "Dispensa de Licitação: para contratação que envolva valores inferiores a R$ 50.000,00 (cinquenta mil reais), no caso de outros serviços e compras"
+        ],
+        [
+            "objetoCompra",
+            "Aquisição de Computadores, para suprir nas necessidades da Divisão de Obtenção, conforme condições, quantidades e exigências estabelecidas no Aviso de Contratação Direta e seus anexos"
+        ],
+        [
+            "informacaoComplementar",
+            "Art. 75º, Inciso II da Lei nº 14.133 de 1º/04/2021."
+        ],
+        [
+            "srp",
+            false
+        ],
+        [
+            "dataPublicacaoPncp",
+            "2024-10-03T11:55:25"
+        ],
+        [
+            "dataAberturaProposta",
+            "2024-10-03T11:55:24"
+        ],
+        [
+            "dataEncerramentoProposta",
+            "2024-10-09T07:59:59"
+        ],
+        [
+            "situacaoCompraId",
+            1
+        ],
+        [
+            "situacaoCompraNome",
+            "Divulgada no PNCP"
+        ],
+        [
+            "existeResultado",
+            true
+        ],
+        [
+            "dataInclusao",
+            "2024-10-03T11:55:25"
+        ],
+        [
+            "dataAtualizacao",
+            "2024-10-03T11:55:25"
+        ],
+        [
+            "usuarioNome",
+            "Compras.gov.br"
+        ]
+    ],
+    "resultados_completos": [
+        {
+            "numeroItem": 1,
+            "descricao": "Microcomputador",
+            "materialOuServico": "M",
+            "materialOuServicoNome": "Material",
+            "valorUnitarioEstimado": 4433.91,
+            "valorTotal": 8867.82,
+            "quantidade": 2.0,
+            "unidadeMedida": "Unidade  ",
+            "orcamentoSigiloso": false,
+            "itemCategoriaId": 3,
+            "itemCategoriaNome": "Não se aplica",
+            "patrimonio": null,
+            "codigoRegistroImobiliario": null,
+            "criterioJulgamentoId": 1,
+            "criterioJulgamentoNome": "Menor preço",
+            "situacaoCompraItem": 2,
+            "situacaoCompraItemNome": "Homologado",
+            "tipoBeneficio": 1,
+            "tipoBeneficioNome": "Participação exclusiva para ME/EPP",
+            "incentivoProdutivoBasico": false,
+            "dataInclusao": "2024-10-11T11:41:06",
+            "dataAtualizacao": "2024-10-11T11:41:06",
+            "temResultado": true,
+            "imagem": null,
+            "aplicabilidadeMargemPreferenciaNormal": false,
+            "aplicabilidadeMargemPreferenciaAdicional": false,
+            "percentualMargemPreferenciaNormal": null,
+            "percentualMargemPreferenciaAdicional": null,
+            "ncmNbsCodigo": null,
+            "ncmNbsDescricao": null,
+            "niFornecedor": "57022818000122",
+            "tipoPessoa": "PJ",
+            "timezoneCotacaoMoedaEstrangeira": null,
+            "moedaEstrangeira": null,
+            "valorNominalMoedaEstrangeira": null,
+            "dataCotacaoMoedaEstrangeira": null,
+            "nomeRazaoSocialFornecedor": "RAMOS SOLUCOES INTEGRADAS LTDA",
+            "codigoPais": "BRA",
+            "porteFornecedorId": 3,
+            "quantidadeHomologada": 2.0,
+            "valorUnitarioHomologado": 3506.45,
+            "valorTotalHomologado": 7012.9,
+            "percentualDesconto": 0.0,
+            "amparoLegalMargemPreferencia": null,
+            "amparoLegalCriterioDesempate": null,
+            "paisOrigemProdutoServico": null,
+            "indicadorSubcontratacao": false,
+            "ordemClassificacaoSrp": 1,
+            "dataResultado": "2024-10-11",
+            "motivoCancelamento": null,
+            "dataCancelamento": null,
+            "aplicacaoBeneficioMeEpp": false,
+            "numeroControlePNCPCompra": "00394502000144-1-013056/2024",
+            "porteFornecedorNome": "Demais",
+            "naturezaJuridicaId": null,
+            "aplicacaoCriterioDesempate": false,
+            "situacaoCompraItemResultadoNome": "Informado",
+            "sequencialResultado": 1,
+            "naturezaJuridicaNome": null,
+            "aplicacaoMargemPreferencia": false,
+            "situacaoCompraItemResultadoId": 1
+        }
+    ]
+}

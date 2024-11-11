@@ -1,11 +1,11 @@
-from src.modules.dispensa_eletronica.models import DispensaEletronicaModel
-from src.modules.dispensa_eletronica.views import DispensaEletronicaWidget
-from src.modules.dispensa_eletronica.dialogs.add_item import AddItemDialog
-from src.modules.dispensa_eletronica.dialogs.salvar_tabela import DataManager
-from src.modules.dispensa_eletronica.dialogs.graficos import GraficTableDialog
-from src.modules.dispensa_eletronica.dialogs.gerar_tabela import TabelaResumidaManager
-from src.modules.dispensa_eletronica.dialogs.edit_data.edit_data import EditarDadosWindow
-from src.modules.dispensa_eletronica.database_manager.db_manager import DatabaseManager
+from src.modules.planejamento.models import LicitacaoModel
+from src.modules.planejamento.views import LicitacaoWidget
+from src.modules.planejamento.dialogs.add_item import AddItemDialog
+from src.modules.planejamento.dialogs.salvar_tabela import DataManager
+from src.modules.planejamento.dialogs.graficos import GraficTableDialog
+from src.modules.planejamento.dialogs.gerar_tabela import TabelaResumidaManager
+from src.modules.planejamento.dialogs.edit_data.edit_data import EditarDadosWindow
+from src.modules.planejamento.database_manager.db_manager import DatabaseManager
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 import pandas as pd
@@ -13,14 +13,15 @@ from src.config.paths import CONTROLE_DADOS
 import sqlite3
 import os
 from src.modules.dispensa_eletronica.dados_api.api_consulta import ConsultaAPIDialog
-class DispensaEletronicaController(QObject): 
+
+class LicitacaoController(QObject): 
     def __init__(self, icons, view, model):
         super().__init__()
         self.icons = icons
         self.view = view
         self.edit_data_dialog = None
         self.model_add = model
-        self.model = model.setup_model("controle_dispensas")
+        self.model = model.setup_model("controle_licitacao")
         self.controle_om = CONTROLE_DADOS  # Atribui o caminho diretamente ao controle_om                
         self.setup_connections()
 
@@ -29,11 +30,13 @@ class DispensaEletronicaController(QObject):
         self.view.addItem.connect(self.handle_add_item)
         self.view.deleteItem.connect(self.handle_delete_item)
         self.view.dataManager.connect(self.handle_data_manager)
-        self.view.salvar_graficos.connect(self.handle_save_charts)
-        self.view.salvar_print.connect(self.handle_save_print)
         self.view.rowDoubleClicked.connect(self.handle_edit_item)
         self.view.request_consulta_api.connect(self.consultar_api)
+        self.view.pauloVitor.connect(self.print_teste)
 
+    def print_teste(self):
+        print("Teste click paulo vitor")
+        
     def consultar_api(self, cnpj, ano, sequencial, uasg, numero):
         # Inicia o diálogo de consulta API com o parent `self.view`
         dialog = ConsultaAPIDialog(numero, cnpj, sequencial, ano, uasg, parent=self.view)
@@ -54,7 +57,7 @@ class DispensaEletronicaController(QObject):
         
     def handle_add_item(self):
         """Trata a ação de adicionar item."""
-        dialog = AddItemDialog(self.icons, self.model.database_manager.db_path, self.controle_om, self.view)  # Passa o caminho do banco de dados
+        dialog = AddItemDialog(self.icons, self.model.database_licitacao_manager.db_path, self.controle_om, self.view)  # Passa o caminho do banco de dados
         if dialog.exec():
             item_data = dialog.get_data()
             # Adiciona a situação padrão 'Planejamento' antes de salvar
@@ -85,7 +88,7 @@ class DispensaEletronicaController(QObject):
                     print(f"Confirmado. Excluindo o item com ID: {id_processo}")
                     # Usando o método delete_data corretamente
                     try:
-                        self.model.database_manager.delete_data(id_processo)
+                        self.model.database_licitacao_manager.delete_data(id_processo)
                         print("Item excluído com sucesso.")
                         self.view.refresh_model()
                         print("Modelo atualizado após exclusão.")
@@ -126,7 +129,7 @@ class DispensaEletronicaController(QObject):
 
         # Conecta ao banco de dados para verificar se a tabela existe e realizar as consultas
         try:
-            with self.model_add.database_manager as conn:
+            with self.model_add.database_licitacao_manager as conn:
                 cursor = conn.cursor()
                 
                 # Verifica se a tabela existe
@@ -212,7 +215,7 @@ class DispensaEletronicaController(QObject):
 
     def desmembramento_id_processo(self, df):
         df[['tipo', 'numero', 'ano']] = df['id_processo'].str.extract(r'(\D+)(\d+)/(\d+)', expand=True)
-        df['tipo'] = df['tipo'].map({'DE ': 'Dispensa Eletrônica'}).fillna('Tipo Desconhecido')
+        df['tipo'] = df['tipo'].map({'PE ': 'Pregão Eletrônico'}).fillna('Tipo Desconhecido')
 
     def salvar_detalhes_uasg_sigla_nome(self, df):
         print(f"[DEBUG] Conectando a {self.controle_om} para detalhes de UASG e Sigla")
@@ -254,9 +257,9 @@ class DispensaEletronicaController(QObject):
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                      QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            with self.model.database_manager as conn:
+            with self.model.database_licitacao_manager as conn:
                 cursor = conn.cursor()
-                cursor.execute("DROP TABLE IF EXISTS controle_dispensas")
+                cursor.execute("DROP TABLE IF EXISTS controle_licitacao")
                 conn.commit()
             QMessageBox.information(self.view, "Sucesso", "Tabela excluída com sucesso.")
             self.view.refresh_model()

@@ -1,0 +1,53 @@
+{
+    "valorTotalEstimado": 8867.82,
+    "valorTotalHomologado": 7012.9,
+    "orcamentoSigilosoCodigo": 1,
+    "orcamentoSigilosoDescricao": "Compra sem sigilo",
+    "numeroControlePNCP": "00394502000144-1-013056/2024",
+    "linkSistemaOrigem": null,
+    "linkProcessoEletronico": null,
+    "anoCompra": 2024,
+    "sequencialCompra": 13056,
+    "numeroCompra": "90056",
+    "processo": "63402001988202405",
+    "orgaoEntidade": {
+        "cnpj": "00394502000144",
+        "razaoSocial": "COMANDO DA MARINHA",
+        "esferaId": "F",
+        "poderId": "E"
+    },
+    "unidadeOrgao": {
+        "codigoUnidade": "787010",
+        "nomeUnidade": "CENTRO DE INTENDÊNCIA DA MARINHA EM BRASÍLIA",
+        "municipioNome": "Brasília",
+        "codigoIbge": "5300108",
+        "ufSigla": "DF",
+        "ufNome": "Distrito Federal"
+    },
+    "orgaoSubRogado": null,
+    "unidadeSubRogada": null,
+    "modalidadeId": 8,
+    "modalidadeNome": "Dispensa",
+    "justificativaPresencial": null,
+    "modoDisputaId": 4,
+    "modoDisputaNome": "Dispensa Com Disputa",
+    "tipoInstrumentoConvocatorioCodigo": 2,
+    "tipoInstrumentoConvocatorioNome": "Aviso de Contratação Direta",
+    "amparoLegal": {
+        "codigo": 19,
+        "nome": "Lei 14.133/2021, Art. 75, II",
+        "descricao": "Dispensa de Licitação: para contratação que envolva valores inferiores a R$ 50.000,00 (cinquenta mil reais), no caso de outros serviços e compras"
+    },
+    "objetoCompra": "Aquisição de Computadores, para suprir nas necessidades da Divisão de Obtenção, conforme condições, quantidades e exigências estabelecidas no Aviso de Contratação Direta e seus anexos",
+    "informacaoComplementar": "Art. 75º, Inciso II da Lei nº 14.133 de 1º/04/2021.",
+    "srp": false,
+    "dataPublicacaoPncp": "2024-10-03T11:55:25",
+    "dataAberturaProposta": "2024-10-03T11:55:24",
+    "dataEncerramentoProposta": "2024-10-09T07:59:59",
+    "situacaoCompraId": 1,
+    "situacaoCompraNome": "Divulgada no PNCP",
+    "existeResultado": true,
+    "dataInclusao": "2024-10-03T11:55:25",
+    "dataAtualizacao": "2024-10-03T11:55:25",
+    "usuarioNome": "Compras.gov.br"
+}

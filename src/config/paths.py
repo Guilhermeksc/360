@@ -16,6 +16,9 @@ MODULES_DIR = BASE_DIR / "modules"
 DISPENSA_ELETRONICA_DIR = MODULES_DIR / "dispensa_eletronica"
 DATA_DISPENSA_ELETRONICA_PATH = DISPENSA_ELETRONICA_DIR / "controle_contratacao_direta.db"
 
+LICITACAO_DIR = MODULES_DIR / "planejamento"
+DATA_LICITACAO_PATH = LICITACAO_DIR / "controle_licitacao.db"
+
 CONTROLE_DADOS = DATABASE_DIR / "controle_dados.db"
 CONTROLE_CONTRATOS_DADOS = DATABASE_DIR / "controle_contrato.db"
 CONTROLE_ASS_CONTRATOS_DADOS = DATABASE_DIR / "controle_assinatura.db"
