@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
+from PyQt6.QtSql import QSqlDatabase, QSqlTableModel
 from src.modules.utils.add_button import add_button, add_button_func, create_button
 from src.modules.dispensa_eletronica.dados_api.api_consulta import ConsultaAPIDialog
 from src.modules.dispensa_eletronica.dialogs.edit_data.apoio_data import COLUNAS_LEGIVEIS, COLUNAS_LEGIVEIS_INVERSO, CORRECAO_VALORES, STYLE_GROUP_BOX
@@ -12,7 +13,7 @@ from src.modules.utils.linha_layout import linha_divisoria_layout, linha_divisor
 from src.modules.utils.select_om import create_selecao_om_layout, load_sigla_om, on_om_changed
 from src.modules.utils.agentes_responsaveis_layout import create_combo_box, carregar_agentes_responsaveis
 from pathlib import Path
-from src.config.paths import CONTROLE_DADOS
+from src.config.paths import CONTROLE_DADOS, DATA_DISPENSA_ELETRONICA_PATH
 import json
 import pandas as pd
 import os
@@ -49,17 +50,19 @@ class EditarDadosWindow(QMainWindow):
     pastas_existentes = pyqtSignal(str, QIcon)
     formulario_carregado = pyqtSignal(pd.DataFrame)
 
-    def __init__(self, dados, icons, total_homologado=0, count_anulado_fracassado=0, count_informado=0, parent=None):
+    def __init__(self, dados, icons, total_homologado=0, count_anulado_fracassado=0, count_informado=0, table_name="", parent=None):
     # def __init__(self, dados, icons, parent=None):
         super().__init__(parent)
         self.dados = dados
         self.icons = icons
-
+        
+        self._df = pd.DataFrame()
         # Armazena os valores passados
         self.total_homologado = total_homologado
         self.count_anulado_fracassado = count_anulado_fracassado
         self.count_informado = count_informado
-
+        self.table_name = table_name
+        self.dados_api = None 
 
         self.status_atualizado.connect(self.atualizar_om_label)
         self.pastas_existentes.connect(self.atualizar_status_layout)
@@ -76,6 +79,20 @@ class EditarDadosWindow(QMainWindow):
 
         # Inicialização da interface gráfica e configuração da UI
         self.setup_ui()
+        self.carregar_dados_api() 
+
+    def carregar_dados_api(self):
+        """Carrega os dados da tabela específica no DataFrame `self.dados_api`."""
+        try:
+            
+            with sqlite3.connect(self.database_path_api) as conn:
+                # Carrega o DataFrame com os dados da tabela
+                query = f'SELECT * FROM "{self.table_name}"'
+                self.dados_api = pd.read_sql_query(query, conn)
+                
+        except Exception as e:
+            print(f"Erro ao carregar dados da tabela {self.table_name}: {e}")
+            self.dados_api = pd.DataFrame()  # Define um DataFrame vazio em caso de erro
 
     def atualizar_om_label(self, uasg, orgao_responsavel):
         """Atualiza o texto do om_label com os valores atualizados de OM."""
@@ -117,7 +134,7 @@ class EditarDadosWindow(QMainWindow):
         """)
         # Inicialização do mapa de widgets
         self.widgets_map = {}
-
+        self.database_path_api = DATA_DISPENSA_ELETRONICA_PATH
         # Configurações de caminho e base de dados
         self.database_path = CONTROLE_DADOS
         self.config = load_config_path_id()
@@ -462,7 +479,7 @@ class EditarDadosWindow(QMainWindow):
                 border-top-left-radius: 10px;
                 border-top-right-radius: 10px;                           
                 border-top: 2px solid #2C2F3F;
-                border-bottom: 5px solid #181928;
+                border-bottom: 7px solid #181928;
             }
         """)
 
@@ -485,20 +502,16 @@ class EditarDadosWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(widget)
 
     def setup_stacked_widgets(self):
-        """Configura os widgets para cada seção e os adiciona ao QStackedWidget"""
-        # Dados de exemplo para preencher os widgets
-        data = self.dados  # Utilize os dados reais
-        
-        # Cria widgets para cada seção
+        # Criação dos widgets, incluindo o TableView para exibir `dados_api`
         self.widgets_map = {
-            "Informações": self.stacked_widget_info(data),
-            "Setor Responsável": self.stacked_widget_responsaveis(data),
-            "Documentos": self.stacked_widget_documentos(data),
-            "Anexos": self.stacked_widget_anexos(data),
-            "Resultados": self.stacked_widget_pncp(data),
+            "Informações": self.stacked_widget_info(self.dados),
+            "Setor Responsável": self.stacked_widget_responsaveis(self.dados),
+            "Documentos": self.stacked_widget_documentos(self.dados),
+            "Anexos": self.stacked_widget_anexos(self.dados),
+            "Resultados": self.stacked_widget_pncp(),  # Certifique-se de que o método está retornando um widget
         }
 
-        # Adiciona cada widget ao QStackedWidget
+        # Adiciona cada widget ao QStackedWidget e verifica se foi adicionado com sucesso
         for name, widget in self.widgets_map.items():
             self.stacked_widget.addWidget(widget)
 
@@ -1122,12 +1135,36 @@ class EditarDadosWindow(QMainWindow):
         # Define o layout para o frame
         frame.setLayout(layout)        
         return frame
-
-    def stacked_widget_pncp(self, data):
+    
+    def stacked_widget_pncp(self):
+        # Criação do frame e do layout vertical
         frame = QFrame()
         layout = QVBoxLayout()
-        label = QLabel("Conteúdo do PNCP")
-        layout.addWidget(label)
+
+        label_titulo = QLabel("Dados da Tabela")
+        layout.addWidget(label_titulo)
+
+        # Configuração da conexão com o banco de dados
+        db = QSqlDatabase.addDatabase("QSQLITE")
+        db.setDatabaseName(str(self.database_path_api))  # Converte para string
+
+        if not db.open():
+            print("DEBUG: Falha ao abrir o banco de dados.")
+            return frame  # Retorna o frame vazio se o banco de dados não puder ser aberto
+
+        # Criação do QSqlTableModel para carregar e exibir a tabela
+        model = QSqlTableModel()
+        model.setTable(self.table_name)
+        model.select()  # Carrega os dados da tabela
+
+        # Criação do QTableView e definição do modelo
+        table_view = QTableView()
+        table_view.setModel(model)
+        table_view.setMinimumSize(400, 300)  # Define um tamanho mínimo para garantir visibilidade
+
+        layout.addWidget(table_view)
+
+        # Define o layout do frame e retorna o frame configurado
         frame.setLayout(layout)
         return frame
 

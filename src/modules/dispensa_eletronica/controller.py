@@ -172,12 +172,11 @@ class DispensaEletronicaController(QObject):
 
         # Passa os valores para a instância de EditarDadosWindow
         self.edit_data_dialog = EditarDadosWindow(
-            data, self.icons, total_homologado, count_anulado_fracassado, count_informado, self.view
+            data, self.icons, total_homologado, count_anulado_fracassado, count_informado, table_name, self.view
         )
         self.edit_data_dialog.save_data_signal.connect(self.handle_save_data)
         self.view.connect_editar_dados_window(self.edit_data_dialog)  # Conecta sinais
         self.edit_data_dialog.show()
-
     
     def handle_save_data(self, data):
         try:
