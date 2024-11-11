@@ -97,5 +97,6 @@ def load_icons():
         "browser": load_icon("browser.png"),
         "open_icon": load_icon("open_icon.png"),
         "refresh": load_icon("refresh.png"),
-
+        "confirm_green": load_icon("confirm_green.png"),
+        "checked": load_icon("checked.png"),
                 }

@@ -35,7 +35,7 @@ def add_button_func(text, icon_name, slot, layout, icons, tooltip=None):
     button.clicked.connect(slot)
 
     layout.addWidget(button)
-
+    button.setCursor(Qt.CursorShape.PointingHandCursor)
     return button
 
 
@@ -89,14 +89,28 @@ def add_button(label, icon_name, signal, layout, icons, tooltip=None):
     layout.addWidget(button)
     return button
 
-def create_button(text, icon, callback, tooltip_text, parent, icon_size=QSize(30, 30)):
-    btn = QPushButton(text, parent)
+def create_button(text, icon, callback, tooltip_text, icon_size=QSize(30, 30)):
+    btn = QPushButton(text)
+    
+    # Define o ícone e tamanho do ícone, se fornecido
     if icon:
         btn.setIcon(QIcon(icon))
         btn.setIconSize(icon_size)
+    
+    # Conecta o callback ao clique, se fornecido
     if callback:
         btn.clicked.connect(callback)
-    if tooltip_text:
-        btn.setToolTip(tooltip_text)
-
+    
+    
+    # Define o estilo de hover para o botão
+    btn.setStyleSheet("""
+        QPushButton {
+            background-color: transparent;
+            padding: 8px;
+        }
+        QPushButton:hover {
+            background-color: #222236; 
+        }
+    """)
+    btn.setCursor(Qt.CursorShape.PointingHandCursor)
     return btn

@@ -277,3 +277,69 @@ class FormularioExcel(QObject):
             subprocess.call(['open', file_path])
         else:
             subprocess.call(['xdg-open', file_path])
+
+
+class TableCreationWorker(QThread):
+    # Sinal para indicar quando o arquivo foi salvo
+    file_saved = pyqtSignal(str)
+
+    def __init__(self, dados, colunas_legiveis, pasta_base):
+        super().__init__()
+        self.dados = dados
+        self.colunas_legiveis = colunas_legiveis
+        self.pasta_base = pasta_base
+
+    def run(self):
+        # Criando e salvando a tabela
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Formulário"
+        
+        # Adicionando título
+        tipo = self.dados.get('tipo', '')
+        numero = self.dados.get('numero', '')
+        ano = self.dados.get('ano', '')
+        objeto = self.dados.get('objeto', '')
+        titulo = f"{tipo} nº {numero}/{ano} ({objeto})"
+        ws.merge_cells('A1:B1')
+        ws['A1'] = titulo
+        ws['A1'].font = Font(size=20, bold=True)
+        ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 40
+
+        # Cabeçalhos
+        ws['A2'] = "Índice"
+        ws['B2'] = "Valor"
+        ws['A2'].font = Font(size=14, bold=True)
+        ws['B2'].font = Font(size=14, bold=True)
+        ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
+        ws['B2'].alignment = Alignment(horizontal='center', vertical='center')
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        ws['A2'].border = thin_border
+        ws['B2'].border = thin_border
+
+        # Ajuste de largura das colunas
+        ws.column_dimensions['A'].width = 50
+        ws.column_dimensions['B'].width = 80
+
+        # Preenchendo dados filtrados
+        for i, (key, label) in enumerate(self.colunas_legiveis.items(), start=3):
+            value = self.dados.get(key, '')  # Obtém o valor correspondente em `self.dados`
+            ws[f'A{i}'] = label
+            ws[f'B{i}'] = str(value)
+            ws[f'B{i}'].alignment = Alignment(wrap_text=True)
+            fill_color = "F2F2F2" if i % 2 == 0 else "FFFFFF"
+            fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
+            ws[f'A{i}'].fill = fill
+            ws[f'B{i}'].fill = fill
+            ws[f'A{i}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            ws.row_dimensions[i].height = 15
+
+            # Aplicando bordas finas a cada célula preenchida
+            for cell in [ws[f'A{i}'], ws[f'B{i}']]:
+                cell.border = thin_border
+
+        # Salvando arquivo e emitindo o sinal com o caminho
+        file_path = self.pasta_base / "formulario.xlsx"
+        wb.save(file_path)
+        self.file_saved.emit(str(file_path))  # Emite o sinal com o caminho do arquivo salvo

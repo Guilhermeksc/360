@@ -12,8 +12,8 @@ import pandas as pd
 from src.config.paths import CONTROLE_DADOS
 import sqlite3
 import os
-
-class DispensaEletronicaController(QObject):
+from src.modules.dispensa_eletronica.dados_api.api_consulta import ConsultaAPIDialog
+class DispensaEletronicaController(QObject): 
     def __init__(self, icons, view, model):
         super().__init__()
         self.icons = icons
@@ -21,7 +21,7 @@ class DispensaEletronicaController(QObject):
         self.edit_data_dialog = None
         self.model_add = model
         self.model = model.setup_model("controle_dispensas")
-        self.controle_om = CONTROLE_DADOS  # Atribui o caminho diretamente ao controle_om
+        self.controle_om = CONTROLE_DADOS  # Atribui o caminho diretamente ao controle_om                
         self.setup_connections()
 
     def setup_connections(self):
@@ -32,7 +32,26 @@ class DispensaEletronicaController(QObject):
         self.view.salvar_graficos.connect(self.handle_save_charts)
         self.view.salvar_print.connect(self.handle_save_print)
         self.view.rowDoubleClicked.connect(self.handle_edit_item)
+        self.view.request_consulta_api.connect(self.consultar_api)
 
+    def consultar_api(self, cnpj, ano, sequencial, uasg, numero):
+        # Inicia o diálogo de consulta API com o parent `self.view`
+        dialog = ConsultaAPIDialog(numero, cnpj, sequencial, ano, uasg, parent=self.view)
+        
+        # Conecta o sinal `consulta_concluida` para processar os dados após a consulta
+        dialog.consulta_concluida.connect(self.handle_api_data)
+        dialog.exec()
+
+    def handle_api_data(self, data_informacoes_lista, resultados_completos):
+        # Estrutura os dados da API para salvar no banco de dados
+        data_api_to_save = {
+            "data_informacoes": data_informacoes_lista,
+            "resultados_completos": resultados_completos
+        }
+        
+        # Solicita ao modelo que salve os dados no banco de dados
+        self.model_add.save_api_data(data_api_to_save)
+        
     def handle_add_item(self):
         """Trata a ação de adicionar item."""
         dialog = AddItemDialog(self.icons, self.model.database_manager.db_path, self.controle_om, self.view)  # Passa o caminho do banco de dados
@@ -96,11 +115,61 @@ class DispensaEletronicaController(QObject):
         self.view.model.select()  # Recarrega os dados no modelo
 
     def handle_edit_item(self, data):
-        # Sempre cria uma nova instância de EditarDadosWindow para cada clique duplo
-        self.edit_data_dialog = EditarDadosWindow(data, self.icons, self.view)
-        self.edit_data_dialog.save_data_signal.connect(self.handle_save_data)
+        # Verifica se a tabela correspondente a `data` existe no banco de dados
+        cnpj_matriz = data.get("cnpj_matriz")
+        sequencial_pncp = data.get("sequencial_pncp")
+        ano = str(data.get("ano", "0000"))[-4:]  # Captura apenas os 4 últimos dígitos do ano
         
-        # Exibe a janela com os dados atualizados
+        # Monta o nome da tabela com base nos dados
+        table_name = f"{cnpj_matriz}_1_{sequencial_pncp}_{ano}"
+        print(f"DEBUG: Nome da tabela a ser verificada: {table_name}")
+
+        # Conecta ao banco de dados para verificar se a tabela existe e realizar as consultas
+        try:
+            with self.model_add.database_manager as conn:
+                cursor = conn.cursor()
+                
+                # Verifica se a tabela existe
+                cursor.execute(f'SELECT name FROM sqlite_master WHERE type="table" AND name="{table_name}"')
+                table_exists = cursor.fetchone() is not None
+                
+                if table_exists:
+                    print(f"Sucesso: A tabela '{table_name}' existe no banco de dados.")
+                    
+                    # Calcula `total_homologado`
+                    cursor.execute(f'SELECT SUM(valorTotalHomologado) FROM "{table_name}" WHERE valorTotalHomologado IS NOT NULL')
+                    total_homologado = cursor.fetchone()[0] or 0
+                    print(f"Somatório de valorTotalHomologado: {total_homologado}")
+
+                    # Conta `situacaoCompraItemNome` com valores específicos
+                    cursor.execute(f'''
+                        SELECT COUNT(*) 
+                        FROM "{table_name}" 
+                        WHERE situacaoCompraItemNome IN ("Anulado/Revogado/Cancelado", "Fracassado")
+                    ''')
+                    count_anulado_fracassado = cursor.fetchone()[0]
+                    print(f"Quantidade de itens 'Anulado/Revogado/Cancelado' ou 'Fracassado': {count_anulado_fracassado}")
+
+                    # Conta `situacaoCompraItemResultadoNome` com valor "Informado"
+                    cursor.execute(f'''
+                        SELECT COUNT(*) 
+                        FROM "{table_name}" 
+                        WHERE situacaoCompraItemResultadoNome = "Informado"
+                    ''')
+                    count_informado = cursor.fetchone()[0]
+                    print(f"Quantidade de itens com situacaoCompraItemResultadoNome 'Informado': {count_informado}")
+                    
+                else:
+                    print(f"Erro: A tabela '{table_name}' não foi encontrada no banco de dados.")
+                    
+        except sqlite3.Error as e:
+            print(f"Erro ao consultar a tabela no banco de dados: {e}")
+            total_homologado, count_anulado_fracassado, count_informado = 0, 0, 0
+
+        # Passa os valores para a instância de EditarDadosWindow
+        self.edit_data_dialog = EditarDadosWindow(data, self.icons, total_homologado, count_anulado_fracassado, count_informado, self.view)
+        self.edit_data_dialog.save_data_signal.connect(self.handle_save_data)
+        self.view.connect_editar_dados_window(self.edit_data_dialog)  # Conecta sinais
         self.edit_data_dialog.show()
     
     def handle_save_data(self, data):

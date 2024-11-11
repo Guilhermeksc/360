@@ -52,7 +52,7 @@ def load_sigla_om(database_path, om_combo, sigla_om):
         QMessageBox.warning(None, "Erro", f"Erro ao carregar OM: {e}")
         print(f"Error loading sigla_om: {e}")
 
-def on_om_changed(om_combo, dados, database_path):
+def on_om_changed(obj, om_combo, dados, database_path):
     """Callback acionado quando a seleção de OM muda no QComboBox."""
     selected_om = om_combo.currentText()
     print(f"OM changed to: {selected_om}")
@@ -63,11 +63,20 @@ def on_om_changed(om_combo, dados, database_path):
             result = cursor.fetchone()
             if result:
                 uasg, orgao_responsavel, uf, codigoMunicipioIbge = result
-                dados['uasg'] = uasg
+                dados['uasg'] = str(uasg)  # Converte `uasg` para string
                 dados['orgao_responsavel'] = orgao_responsavel
                 dados['uf'] = uf
                 dados['codigoMunicipioIbge'] = codigoMunicipioIbge
-                print(f"Updated dados: uasg={uasg}, orgao_responsavel={orgao_responsavel}")
+
+                # Atualiza os valores diretamente no objeto principal
+                obj.uasg = str(uasg)  # Converte para string antes de atribuir a `self.uasg`
+                obj.orgao_responsavel = orgao_responsavel
+
+                # Emite o sinal para atualizar o om_label
+                obj.status_atualizado.emit(obj.uasg, obj.orgao_responsavel)
+
+                print(f"Updated dados: uasg={obj.uasg}, orgao_responsavel={obj.orgao_responsavel}")
     except Exception as e:
         QMessageBox.warning(None, "Erro", f"Erro ao atualizar dados de OM: {e}")
         print(f"Error updating OM: {e}")
+

@@ -6,6 +6,7 @@ from PyQt6.QtCore import *
 from PyQt6.QtSql import QSqlDatabase, QSqlTableModel, QSqlQuery
 from functools import partial
 import sqlite3  
+import re
 class DispensaEletronicaModel(QObject):
     def __init__(self, database_path, parent=None):
         super().__init__(parent)
@@ -27,6 +28,108 @@ class DispensaEletronicaModel(QObject):
             print("Conexão com o banco de dados aberta com sucesso.")
             self.adjust_table_structure()  # Ajusta a estrutura da tabela, se necessário
 
+    def save_api_data(self, data_api):
+        """Salva os dados da API no banco de dados com depuração aprimorada."""
+        
+        # Inspecionar `data_api`
+        print("DEBUG: Conteúdo de `data_api`:", data_api)
+        
+        # Acessa `data_informacoes` e converte para dicionário, se for uma lista de tuplas
+        data_informacoes = data_api['data_informacoes']
+        if isinstance(data_informacoes, list):
+            data_informacoes = dict(data_informacoes)
+
+        numero_controle_pncp = data_informacoes.get('numeroControlePNCP')
+        if not numero_controle_pncp:
+            print("Erro: 'numeroControlePNCP' não encontrado.")
+            return
+
+        # Remover caracteres especiais do nome da tabela
+        table_name = re.sub(r'[/-]', '_', numero_controle_pncp)
+        print(f"DEBUG: Nome da tabela convertido: {table_name}")
+
+        # SQL para criar a tabela com as colunas especificadas
+        create_table_sql = f"""
+            CREATE TABLE IF NOT EXISTS '{table_name}' (
+                numeroItem INTEGER PRIMARY KEY,
+                descricao TEXT,
+                materialOuServico TEXT,
+                valorUnitarioEstimado REAL,
+                valorTotal REAL,
+                valorUnitarioHomologado REAL,
+                valorTotalHomologado REAL,
+                quantidadeHomologada REAL,
+                unidadeMedida TEXT,
+                situacaoCompraItemNome TEXT,
+                dataAtualizacao TEXT,
+                niFornecedor TEXT,
+                nomeRazaoSocialFornecedor TEXT,
+                situacaoCompraItemResultadoNome TEXT
+            )
+        """
+        
+        # Criação da tabela, se não existir
+        with self.database_manager as conn:
+            cursor = conn.cursor()
+            cursor.execute(create_table_sql)
+            conn.commit()
+            print(f"Tabela '{table_name}' criada ou já existe.")
+
+            # Inserir os dados de `resultados_completos` na tabela
+            insert_sql = f"""
+                INSERT OR REPLACE INTO '{table_name}' (
+                    numeroItem,
+                    descricao,
+                    materialOuServico,
+                    valorUnitarioEstimado,
+                    valorTotal,
+                    valorUnitarioHomologado,
+                    valorTotalHomologado,
+                    quantidadeHomologada,
+                    unidadeMedida,
+                    situacaoCompraItemNome,
+                    dataAtualizacao,
+                    niFornecedor,
+                    nomeRazaoSocialFornecedor,
+                    situacaoCompraItemResultadoNome
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            # Depuração para verificar o SQL de inserção e os valores
+            print("DEBUG: SQL de inserção:", insert_sql)
+
+            for resultado in data_api['resultados_completos']:
+                # Preparando os valores para inserção
+                valores = (
+                    resultado.get("numeroItem"),
+                    resultado.get("descricao"),
+                    resultado.get("materialOuServico"),
+                    resultado.get("valorUnitarioEstimado"),
+                    resultado.get("valorTotal"),
+                    resultado.get("valorUnitarioHomologado"),
+                    resultado.get("valorTotalHomologado"),
+                    resultado.get("quantidadeHomologada"),
+                    resultado.get("unidadeMedida"),
+                    resultado.get("situacaoCompraItemNome"),
+                    resultado.get("dataAtualizacao"),
+                    resultado.get("niFornecedor"),
+                    resultado.get("nomeRazaoSocialFornecedor"),
+                    resultado.get("situacaoCompraItemResultadoNome")
+                )
+                
+                # Verificando o conteúdo dos valores antes de inserir
+                print(f"DEBUG: Inserindo valores na tabela '{table_name}': {valores}")
+                
+                # Inserir os valores na tabela
+                try:
+                    cursor.execute(insert_sql, valores)
+                except Exception as e:
+                    print(f"Erro ao inserir dados na tabela '{table_name}': {e}")
+            
+            conn.commit()
+        
+        print(f"Dados inseridos com sucesso na tabela '{table_name}'.")
+
     def adjust_table_structure(self):
         """Verifica e cria a tabela 'controle_dispensas' se não existir."""
         query = QSqlQuery(self.db)
@@ -37,6 +140,74 @@ class DispensaEletronicaModel(QObject):
             self.create_table_if_not_exists()
         else:
             print("Tabela 'controle_dispensas' existe. Verificando estrutura da coluna...")
+
+    def save_api_data_to_database(self, data_api):
+        # Obtém o valor de 'numeroControlePNCP' para nome da tabela
+        numero_controle_pncp = data_api['data_informacoes'].get('numeroControlePNCP')
+        
+        if not numero_controle_pncp:
+            print("Erro: 'numeroControlePNCP' não encontrado nos dados da API.")
+            return
+
+        # Constrói a consulta de criação de tabela com o nome dinâmico
+        create_table_sql = f"""
+            CREATE TABLE IF NOT EXISTS '{numero_controle_pncp}' (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                valorTotalEstimado REAL,
+                valorTotalHomologado REAL,
+                orcamentoSigilosoCodigo INTEGER,
+                orcamentoSigilosoDescricao TEXT,
+                numeroControlePNCP TEXT,
+                linkSistemaOrigem TEXT,
+                anoCompra INTEGER,
+                sequencialCompra INTEGER,
+                numeroCompra TEXT,
+                processo TEXT
+                -- Adicione outras colunas conforme necessário
+            )
+        """
+
+        # Executa a criação da tabela
+        with self.database_manager as conn:
+            cursor = conn.cursor()
+            cursor.execute(create_table_sql)
+            
+            # Insere os dados da API na tabela criada
+            insert_sql = f"""
+                INSERT INTO '{numero_controle_pncp}' (
+                    valorTotalEstimado,
+                    valorTotalHomologado,
+                    orcamentoSigilosoCodigo,
+                    orcamentoSigilosoDescricao,
+                    numeroControlePNCP,
+                    linkSistemaOrigem,
+                    anoCompra,
+                    sequencialCompra,
+                    numeroCompra,
+                    processo
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            # Extrai valores de 'data_informacoes' para inserir na tabela
+            data_informacoes = data_api['data_informacoes']
+            valores = (
+                data_informacoes.get("valorTotalEstimado"),
+                data_informacoes.get("valorTotalHomologado"),
+                data_informacoes.get("orcamentoSigilosoCodigo"),
+                data_informacoes.get("orcamentoSigilosoDescricao"),
+                data_informacoes.get("numeroControlePNCP"),
+                data_informacoes.get("linkSistemaOrigem"),
+                data_informacoes.get("anoCompra"),
+                data_informacoes.get("sequencialCompra"),
+                data_informacoes.get("numeroCompra"),
+                data_informacoes.get("processo")
+            )
+            
+            cursor.execute(insert_sql, valores)
+            conn.commit()
+        
+        print(f"Tabela '{numero_controle_pncp}' criada e dados inseridos com sucesso.")
+
 
     def create_table_if_not_exists(self):
         """Cria a tabela 'controle_dispensas' com a estrutura definida, caso ainda não exista."""

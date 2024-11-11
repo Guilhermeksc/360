@@ -13,7 +13,8 @@ class DispensaEletronicaWidget(QMainWindow):
     salvar_print = pyqtSignal()
     loadData = pyqtSignal(str)
     rowDoubleClicked = pyqtSignal(dict)
-
+    request_consulta_api = pyqtSignal(str, str, str, str, str)
+    
     def __init__(self, icons, model, database_path, parent=None):
         super().__init__(parent)
         self.icons = icons
@@ -45,6 +46,10 @@ class DispensaEletronicaWidget(QMainWindow):
         self.configure_table_model()
         self.adjust_columns()
 
+    def connect_editar_dados_window(self, editar_dados_window):
+        # Conecta o sinal do EditarDadosWindow ao próprio widget
+        editar_dados_window.request_consulta_api.connect(self.request_consulta_api.emit)
+        
     def on_table_double_click(self, index):
         row = self.proxy_model.mapToSource(index).row()
         id_processo = self.model.index(row, self.model.fieldIndex("id_processo")).data()
@@ -58,7 +63,6 @@ class DispensaEletronicaWidget(QMainWindow):
         else:
             QMessageBox.warning(self, "Erro", "Falha ao carregar dados para o ID do processo selecionado.")
 
-    
     def carregar_dados_por_id(self, id_processo):
         """Carrega os dados da linha selecionada a partir do banco de dados usando `id_processo`."""
         query = f"SELECT * FROM controle_dispensas WHERE id_processo = '{id_processo}'"

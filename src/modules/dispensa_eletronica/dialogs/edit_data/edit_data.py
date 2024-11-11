@@ -1,13 +1,14 @@
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
-from src.modules.utils.add_button import add_button, add_button_func
-from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.consulta_api import setup_consulta_api
-from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.gerar_documentos import ConsolidarDocumentos
+from src.modules.utils.add_button import add_button, add_button_func, create_button
+from src.modules.dispensa_eletronica.dados_api.api_consulta import ConsultaAPIDialog
+from src.modules.dispensa_eletronica.dialogs.edit_data.apoio_data import COLUNAS_LEGIVEIS, COLUNAS_LEGIVEIS_INVERSO, CORRECAO_VALORES, STYLE_GROUP_BOX
+from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.gerar_documentos import ConsolidarDocumentos, PDFAddDialog
 from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.sigdem_layout import create_GrupoSIGDEM, create_utilidades_group
 from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.setor_responsavel import create_dados_responsavel_contratacao_group
-from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.contratacao import create_info_comprasnet
-from src.modules.utils.linha_layout import linha_divisoria_layout
+from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.formulario import TableCreationWorker
+from src.modules.utils.linha_layout import linha_divisoria_layout, linha_divisoria_sem_spacer_layout
 from src.modules.utils.select_om import create_selecao_om_layout, load_sigla_om, on_om_changed
 from src.modules.utils.agentes_responsaveis_layout import create_combo_box, carregar_agentes_responsaveis
 from pathlib import Path
@@ -20,6 +21,9 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Border, Side, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 from src.modules.utils.add_button import add_button, add_button_func
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+import sqlite3
 
 CONFIG_FILE = 'config.json'
 
@@ -32,101 +36,69 @@ def load_config_path_id():
 def save_config(config):
     with open(CONFIG_FILE, 'w') as file:
         json.dump(config, file)
-from PyQt6.QtCore import QThread, pyqtSignal
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from pathlib import Path
-import os
-import subprocess
 
 def number_to_text(number):
     numbers_in_words = ["um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "doze"]
     return numbers_in_words[number - 1] 
-
-class TableCreationWorker(QThread):
-    # Sinal para indicar quando o arquivo foi salvo
-    file_saved = pyqtSignal(str)
-
-    def __init__(self, dados, colunas_legiveis, pasta_base):
-        super().__init__()
-        self.dados = dados
-        self.colunas_legiveis = colunas_legiveis
-        self.pasta_base = pasta_base
-
-    def run(self):
-        # Criando e salvando a tabela
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Formulário"
-        
-        # Adicionando título
-        tipo = self.dados.get('tipo', '')
-        numero = self.dados.get('numero', '')
-        ano = self.dados.get('ano', '')
-        objeto = self.dados.get('objeto', '')
-        titulo = f"{tipo} nº {numero}/{ano} ({objeto})"
-        ws.merge_cells('A1:B1')
-        ws['A1'] = titulo
-        ws['A1'].font = Font(size=20, bold=True)
-        ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
-        ws.row_dimensions[1].height = 40
-
-        # Cabeçalhos
-        ws['A2'] = "Índice"
-        ws['B2'] = "Valor"
-        ws['A2'].font = Font(size=14, bold=True)
-        ws['B2'].font = Font(size=14, bold=True)
-        ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
-        ws['B2'].alignment = Alignment(horizontal='center', vertical='center')
-        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        ws['A2'].border = thin_border
-        ws['B2'].border = thin_border
-
-        # Ajuste de largura das colunas
-        ws.column_dimensions['A'].width = 50
-        ws.column_dimensions['B'].width = 80
-
-        # Preenchendo dados filtrados
-        for i, (key, label) in enumerate(self.colunas_legiveis.items(), start=3):
-            value = self.dados.get(key, '')  # Obtém o valor correspondente em `self.dados`
-            ws[f'A{i}'] = label
-            ws[f'B{i}'] = str(value)
-            ws[f'B{i}'].alignment = Alignment(wrap_text=True)
-            fill_color = "F2F2F2" if i % 2 == 0 else "FFFFFF"
-            fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
-            ws[f'A{i}'].fill = fill
-            ws[f'B{i}'].fill = fill
-            ws[f'A{i}'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-            ws.row_dimensions[i].height = 15
-
-            # Aplicando bordas finas a cada célula preenchida
-            for cell in [ws[f'A{i}'], ws[f'B{i}']]:
-                cell.border = thin_border
-
-        # Salvando arquivo e emitindo o sinal com o caminho
-        file_path = self.pasta_base / "formulario.xlsx"
-        wb.save(file_path)
-        self.file_saved.emit(str(file_path))  # Emite o sinal com o caminho do arquivo salvo
-
-
+    
 class EditarDadosWindow(QMainWindow):
     save_data_signal = pyqtSignal(dict)
+    save_data_api_signal = pyqtSignal(dict)
+    request_consulta_api = pyqtSignal(str, str, str, str, str)
     status_atualizado = pyqtSignal(str, str)
-    formulario_carregado = pyqtSignal(pd.DataFrame) 
+    pastas_existentes = pyqtSignal(str, QIcon)
+    formulario_carregado = pyqtSignal(pd.DataFrame)
 
-    def __init__(self, dados, icons, parent=None):
+    def __init__(self, dados, icons, total_homologado=0, count_anulado_fracassado=0, count_informado=0, parent=None):
         super().__init__(parent)
         self.dados = dados
         self.icons = icons
+
+        # Armazena os valores passados
+        self.total_homologado = total_homologado
+        self.count_anulado_fracassado = count_anulado_fracassado
+        self.count_informado = count_informado
+
+
+        self.status_atualizado.connect(self.atualizar_om_label)
+        self.pastas_existentes.connect(self.atualizar_status_layout)
+        # self.formulario_carregado.connect(self.on_formulario_carregado)
 
         # Configurações gerais da janela
         self.setWindowTitle("Editar Dados")
         self.setWindowIcon(self.icons.get("edit", None))
         self.setFixedSize(1150, 780)
-        
-        # Posicionar a janela no canto superior esquerdo da tela
-        self.move(0, 0)
+        self.move(0, 0)  # Posicionar no canto superior esquerdo da tela
 
+        # Carrega todas as referências e widgets
+        self.carregar_referencias()
+
+        # Inicialização da interface gráfica e configuração da UI
+        self.setup_ui()
+
+    def atualizar_om_label(self, uasg, orgao_responsavel):
+        """Atualiza o texto do om_label com os valores atualizados de OM."""
+        sigla_om = self.om_combo.currentText()  # Obtém a sigla OM atual do ComboBox
+        self.om_label.setText(f"{sigla_om} - {orgao_responsavel} ({uasg})")
+
+    def atualizar_objeto_label(self):
+        """Atualiza o texto do objeto_label com o valor atual de objeto_edit e a seleção de material/serviço."""
+        objeto_text = self.objeto_edit.text() or "N/A"
+        material_servico = "Serviço" if self.radio_servico.isChecked() else "Material"
+        self.objeto_label.setText(f"{objeto_text} ({material_servico})")
+
+    def atualizar_status_layout(self, status_text, icon):
+        """Atualiza o status_label e icon_label com o texto e ícone fornecidos."""
+        self.status_label.setText(status_text)
+        if icon and isinstance(icon, QIcon):
+            icon_pixmap = icon.pixmap(30, 30)
+            self.icon_label.setPixmap(icon_pixmap)
+        else:
+            self.icon_label.clear()  # Limpa o ícone se não houver um válido
+            
+    def carregar_referencias(self):
+        """Configura as referências, widgets, e objetos utilizados na classe."""
+        
         # Referências aos RadioButtons para material_servico, com_disputa e pesquisa_preco
         self.radio_material = None
         self.radio_servico = None
@@ -134,18 +106,18 @@ class EditarDadosWindow(QMainWindow):
         self.radio_disputa_nao = None
         self.radio_pesquisa_sim = None
         self.radio_pesquisa_nao = None
-
-        # Configurações e widgets principais
         self.selected_button = None
+        # Inicialização do stacked_widget com estilo aplicado
         self.stacked_widget = QStackedWidget(self)
         self.stacked_widget.setStyleSheet("""
             QLabel { font-size: 16px; }
             QCheckBox { font-size: 16px; }
             QLineEdit { font-size: 14px; }
         """)
+        # Inicialização do mapa de widgets
         self.widgets_map = {}
-        
-        # Configurações de caminho e inicialização da base de dados
+
+        # Configurações de caminho e base de dados
         self.database_path = CONTROLE_DADOS
         self.config = load_config_path_id()
         self.pasta_base = Path(self.config.get('pasta_base', str(Path.home() / 'Desktop')))
@@ -157,64 +129,73 @@ class EditarDadosWindow(QMainWindow):
         # Label de status para mostrar atualizações de consolidação
         self.status_label = QLabel(self)
 
-        # Inicialização da interface gráfica e configuração da UI
-        self.setup_ui()
-
-        self.colunas_legiveis = {
-            'nup': 'NUP',
-            'material_servico': 'Material (M) ou Serviço (S)',
-            'vigencia': 'Vigência (Ex: 2 (dois) meses, 6 (seis) meses), etc.',
-            'criterio_julgamento': 'Critério de Julgamento (Menor Preço ou Maior Desconto)',
-            'com_disputa': 'Com disputa? Sim (S) ou Não (N)',
-            'pesquisa_preco': 'Pesquisa Concomitante? Sim (S) ou Não (N)',
-            'sigla_om': 'OM',
-            'setor_responsavel': 'Setor Responsável',
-            'cod_par': 'Código PAR',
-            'prioridade_par': 'Prioridade PAR (Necessário, Urgente ou Desejável)',
-            'cep': 'CEP',
-            'endereco': 'Endereço',
-            'email': 'Email',
-            'telefone': 'Telefone',
-            'dias_para_recebimento': 'Dias para Recebimento',
-            'horario_para_recebimento': 'Horário para Recebimento',
-            'valor_total': 'Valor Total',
-            'acao_interna': 'Ação Interna',
-            'fonte_recursos': 'Fonte de Recursos',
-            'natureza_despesa': 'Natureza da Despesa',
-            'unidade_orcamentaria': 'Unidade Orçamentária',
-            'ptres': 'PTRES',
-            'atividade_custeio': 'Atividade de Custeio',
-            'justificativa': 'Justificativa',
-            'comunicacao_padronizada': 'Comunicação Padronizada (CP), Ex: 60-25',
-        }
-        
-        # Dicionário inverso para mapeamento reverso das colunas legíveis
-        self.colunas_legiveis_inverso = {v: k for k, v in self.colunas_legiveis.items()}
+        # Utilização dos dicionários externos
+        self.colunas_legiveis = COLUNAS_LEGIVEIS
+        self.colunas_legiveis_inverso = COLUNAS_LEGIVEIS_INVERSO
 
         # Mapas de normalização de valores para campos específicos
-        self.normalizacao_valores = {
-            'material_servico': {
-                'M': 'Material', 'm': 'Material', 'Material': 'Material', 'material': 'Material',
-                'S': 'Serviço', 's': 'Serviço', 'Serviço': 'Serviço', 'serviço': 'Serviço',
-                'Servico': 'Serviço', 'servico': 'Serviço'
-            },
-            'com_disputa': {
-                'S': 'Sim', 's': 'Sim', 'Sim': 'Sim', 'sim': 'Sim',
-                'N': 'Não', 'n': 'Não', 'Não': 'Não', 'não': 'Não',
-                'Nao': 'Não', 'nao': 'Não'
-            },
-            'pesquisa_preco': {
-                'S': 'Sim', 's': 'Sim', 'Sim': 'Sim', 'sim': 'Sim',
-                'N': 'Não', 'n': 'Não', 'Não': 'Não', 'não': 'Não',
-                'Nao': 'Não', 'nao': 'Não'
-            },
-            'atividade_custeio': {
-                'S': 'Sim', 's': 'Sim', 'Sim': 'Sim', 'sim': 'Sim',
-                'N': 'Não', 'n': 'Não', 'Não': 'Não', 'não': 'Não',
-                'Nao': 'Não', 'nao': 'Não'
-            }
-        }            
+        self.normalizacao_valores = CORRECAO_VALORES
 
+        self.save_data_signal.connect(self.consolidador.update_data)
+        
+    def verificar_pastas(self, pasta_base):
+        # Acesse o id_processo a partir de self.dados
+        id_processo = self.dados.get('id_processo', 'desconhecido').replace("/", "-")  # Use uma chave de dicionário
+        objeto = self.dados.get('objeto', 'objeto_desconhecido').replace("/", "-")  # Acessando corretamente o objeto
+
+        base_path = pasta_base / f'{id_processo} - {objeto}'
+
+        pastas_necessarias = [
+            base_path / '1. Autorizacao',
+            base_path / '2. CP e anexos',
+            base_path / '3. Aviso',
+            base_path / '2. CP e anexos' / 'DFD',
+            base_path / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin',
+            base_path / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade',
+            base_path / '2. CP e anexos' / 'TR',
+            base_path / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços',
+            base_path / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária',
+            base_path / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser',
+            base_path / '2. CP e anexos' / 'Justificativas Relevantes',
+            base_path / '2. CP e anexos' / 'ETP',
+            base_path / '2. CP e anexos' / 'MR',
+        ]
+
+        # Verifica se todas as pastas necessárias existem
+        pastas_existentes = all(pasta.exists() for pasta in pastas_necessarias)
+        return pastas_existentes
+
+    def verificar_e_criar_pastas(self, pasta_base):
+        try:
+            id_processo_modificado = self.id_processo.replace("/", "-")
+            objeto_modificado = self.objeto.replace("/", "-")
+            base_path = pasta_base / f'{id_processo_modificado} - {objeto_modificado}'
+
+            pastas_necessarias = [
+                pasta_base / '1. Autorizacao',
+                pasta_base / '2. CP e anexos',
+                pasta_base / '3. Aviso',
+                pasta_base / '2. CP e anexos' / 'DFD',
+                pasta_base / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin',
+                pasta_base / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade',
+                pasta_base / '2. CP e anexos' / 'TR',
+                pasta_base / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços',
+                pasta_base / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária',
+                pasta_base / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser',
+                pasta_base / '2. CP e anexos' / 'Justificativas Relevantes',
+                pasta_base / '2. CP e anexos' / 'ETP',
+                pasta_base / '2. CP e anexos' / 'MR',
+            ]
+
+            for pasta in pastas_necessarias:
+                if not pasta.exists():
+                    pasta.mkdir(parents=True)
+
+        except (FileNotFoundError, PermissionError) as e:
+            QMessageBox.critical(self, "Erro ao criar pastas", f"Não foi possível criar as pastas necessárias devido ao erro: {str(e)}. Por favor, selecione uma nova pasta base na aba 'Documentos'.")
+            
+        return pastas_necessarias
+        
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:
             self.close()
@@ -225,19 +206,7 @@ class EditarDadosWindow(QMainWindow):
         """Cria o layout para os agentes responsáveis e o organiza em um QGroupBox estilizado."""
         group_box = QGroupBox("Agentes Responsáveis")
         group_box.setMaximumWidth(max_width)
-        group_box.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #3C3C5A;
-                border-radius: 10px;
-                font-size: 16px;
-                font-weight: bold;
-                color: white;
-                margin-top: 13px;
-            }
-            QGroupBox:title {
-                subcontrol-origin: margin;
-            }
-        """)
+        group_box.setStyleSheet(STYLE_GROUP_BOX)
 
         # Frame para organizar os agentes responsáveis
         frame_agentes = QFrame()
@@ -291,7 +260,6 @@ class EditarDadosWindow(QMainWindow):
 
         return group_box
 
-
     def save_data(self):
         # Coleta os dados dos widgets de contratação
         data_to_save = {
@@ -301,6 +269,8 @@ class EditarDadosWindow(QMainWindow):
             'ano': self.dados.get('ano'),
             'situacao': self.situacao_combo.currentText(),
             'sigla_om': self.om_combo.currentText(),
+            'uasg': self.dados.get('uasg'),
+            'orgao_responsavel': self.dados.get('orgao_responsavel'),
             'setor_responsavel': self.setor_responsavel_combo.currentText(),
             'data_sessao': self.data_edit.date().toString("yyyy-MM-dd"),
             'cnpj_matriz': self.cnpj_edit.text(),
@@ -382,7 +352,7 @@ class EditarDadosWindow(QMainWindow):
         self.central_layout.addLayout(Left_layout)
 
         # Configura o layout da consulta API
-        self.group_box_consulta_api, self.cnpj_edit, self.sequencial_edit = setup_consulta_api(parent=self, icons=self.icons, data=self.dados)
+        self.group_box_consulta_api = self.setup_consulta_api()
         self.group_box_agentes = self.create_agentes_responsaveis_layout()
         self.group_box_sessao = self.create_sessao_publica_group()
 
@@ -403,35 +373,10 @@ class EditarDadosWindow(QMainWindow):
         # Configuração dos widgets no QStackedWidget
         self.setup_stacked_widgets()
 
-    def verificar_pastas(self, pasta_base):
-        # Acesse o id_processo a partir de self.dados
-        id_processo = self.dados.get('id_processo', 'desconhecido').replace("/", "-")  # Use uma chave de dicionário
-        objeto = self.dados.get('objeto', 'objeto_desconhecido').replace("/", "-")  # Acessando corretamente o objeto
-
-        base_path = pasta_base / f'{id_processo} - {objeto}'
-
-        pastas_necessarias = [
-            base_path / '1. Autorizacao',
-            base_path / '2. CP e anexos',
-            base_path / '3. Aviso',
-            base_path / '2. CP e anexos' / 'DFD',
-            base_path / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin',
-            base_path / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade',
-            base_path / '2. CP e anexos' / 'TR',
-            base_path / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços',
-            base_path / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária',
-            base_path / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser',
-            base_path / '2. CP e anexos' / 'Justificativas Relevantes',
-        ]
-
-        # Verifica se todas as pastas necessárias existem
-        pastas_existentes = all(pasta.exists() for pasta in pastas_necessarias)
-        return pastas_existentes
-
     def create_navigation_layout(self):
         # Criação do frame que conterá o nav_layout e aplicará a borda inferior
         nav_frame = QFrame()
-        nav_frame.setStyleSheet("QFrame {border-bottom: 5px solid #13141F;}")
+        nav_frame.setStyleSheet("QFrame {border-bottom: 1px solid #2C2F3F;}")
 
         # Layout horizontal para os botões de navegação
         nav_layout = QHBoxLayout(nav_frame)
@@ -445,12 +390,17 @@ class EditarDadosWindow(QMainWindow):
             ("Anexos", "Anexos"),
             ("Resultados", "Resultados"),
         ]
+        
+        nav_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
 
         for index, (text, name) in enumerate(buttons):
             button = QPushButton(text, self)
             button.setObjectName(name)
             button.setProperty("class", "nav-button")
             button.clicked.connect(lambda _, n=name, b=button: self.on_navigation_button_clicked(n, b))
+            
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+
             nav_layout.addWidget(button)
 
             # Define o botão "Informações" como selecionado
@@ -483,26 +433,35 @@ class EditarDadosWindow(QMainWindow):
         self.setStyleSheet("""
             QPushButton[class="nav-button"] {
                 background-color: #181928;
-                color: #8BE9D9;
+                color: #8AB4F7;
                 border: none;
                 font-size: 14px;
+                padding: 8px 15px;
                 border-top: 10px solid #181928;
-                border-bottom: 5px solid #13141F;                           
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px; 
             }
             QPushButton[class="nav-button"]:hover {
-                background-color: #181928;
-                color: white;
-                font-size: 14px;
-                border-top: 3px solid #181928;
-                border-bottom: 5px solid #13141F;
+                background-color: #3A3E5B; 
+                color: #FFFFFF;
+                border-left: 2px solid #3A3E5B; 
+                border-right: 2px solid #3A3E5B; 
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;                           
+                border-top: 2px solid #3A3E5B;
+                padding: 2px 4px; 
             }
             QPushButton[class="nav-button selected"] {
-                background-color: #13141F;
-                color: white;
+                background-color: #181928;
+                color: #FFFFFF;
                 font-weight: bold;
                 font-size: 14px;
-                border-top: 2px solid #FF79C6;
-                border-bottom: 5px solid #13141F;
+                border-left: 2px solid #2C2F3F; 
+                border-right: 2px solid #2C2F3F; 
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;                           
+                border-top: 2px solid #2C2F3F;
+                border-bottom: 5px solid #181928;
             }
         """)
 
@@ -549,9 +508,7 @@ class EditarDadosWindow(QMainWindow):
 
         info_contratacao_layout = QVBoxLayout()
         self.contratacao_layout = self.create_contratacao_group()
-        info_comprasnet_layout = create_info_comprasnet(data)
         info_contratacao_layout.addWidget(self.contratacao_layout)
-        info_contratacao_layout.addWidget(info_comprasnet_layout)
 
         classificacao_orcamentaria_formulario_layout = QVBoxLayout()
         self.classificacao_orcamentaria_group_box = self.create_classificacao_orcamentaria_group()
@@ -571,20 +528,7 @@ class EditarDadosWindow(QMainWindow):
 
     def create_contratacao_group(self):
         contratacao_group_box = QGroupBox("Informações da Contratação")
-        contratacao_group_box.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #3C3C5A;
-                border-radius: 10px;
-                font-size: 16px;
-                font-weight: bold;
-                color: white;
-                margin-top: 13px;
-            }
-            QGroupBox:title {
-                subcontrol-origin: margin;
-                padding: 0 3px;
-            }
-        """)
+        contratacao_group_box.setStyleSheet(STYLE_GROUP_BOX)
 
         contratacao_layout = QVBoxLayout()
 
@@ -595,6 +539,9 @@ class EditarDadosWindow(QMainWindow):
         objeto_layout.addWidget(objeto_label)
         objeto_layout.addWidget(self.objeto_edit)
         contratacao_layout.addLayout(objeto_layout)
+
+        # Conecta o sinal editingFinished para atualizar o objeto_label automaticamente
+        self.objeto_edit.editingFinished.connect(self.atualizar_objeto_label)
 
         # NUP, Material e Serviço com seleção exclusiva
         nup_layout = QHBoxLayout()
@@ -644,6 +591,15 @@ class EditarDadosWindow(QMainWindow):
         # Adiciona o layout ao layout principal de contratação
         contratacao_layout.addLayout(criterio_layout)
 
+        spacer_item = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        contratacao_layout.addItem(spacer_item)
+        
+        linha_divisoria = linha_divisoria_sem_spacer_layout()
+        contratacao_layout.addWidget(linha_divisoria)
+
+        spacer_item = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        contratacao_layout.addItem(spacer_item)
+
         # Material e Serviço com seleção exclusiva usando RadioButtons
         material_servico_layout = QHBoxLayout()
         material_servico_label = QLabel("Material/Serviço:")
@@ -665,6 +621,12 @@ class EditarDadosWindow(QMainWindow):
         material_servico_layout.addWidget(self.radio_servico)
         contratacao_layout.addLayout(material_servico_layout)
 
+        # Conecta o sinal para atualizar o objeto_label quando "Material" ou "Serviço" é selecionado
+        self.material_servico_group.buttonClicked.connect(self.atualizar_objeto_label)
+
+        spacer_item = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        contratacao_layout.addItem(spacer_item)
+
         # Configuração dos RadioButtons para "Com Disputa"
         disputa_layout = QHBoxLayout()
         disputa_label = QLabel("Com disputa?")
@@ -682,6 +644,9 @@ class EditarDadosWindow(QMainWindow):
         disputa_layout.addWidget(self.radio_disputa_sim)
         disputa_layout.addWidget(self.radio_disputa_nao)
         contratacao_layout.addLayout(disputa_layout)
+
+        spacer_item = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        contratacao_layout.addItem(spacer_item)
 
         # Configuração dos RadioButtons para "Pesquisa Concomitante"
         pesquisa_layout = QHBoxLayout()
@@ -701,6 +666,53 @@ class EditarDadosWindow(QMainWindow):
         pesquisa_layout.addWidget(self.radio_pesquisa_nao)
         contratacao_layout.addLayout(pesquisa_layout)
 
+        spacer_item = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        contratacao_layout.addItem(spacer_item)
+        
+        linha_divisoria = linha_divisoria_sem_spacer_layout()
+        contratacao_layout.addWidget(linha_divisoria)
+        
+        comprasnet_layout = QVBoxLayout()
+
+        consulta_api = QHBoxLayout()
+        api_icon = QLabel()
+        api_icon.setPixmap(self.icons["api"].pixmap(30, 30))  # Ícone de tamanho 20x20
+        consulta_api.addWidget(api_icon)
+
+        ultima_atualizacao = self.dados.get("ultima_atualizacao", "N/A")
+        ultima_consulta = QLabel(f"Última consulta: {ultima_atualizacao}")
+        ultima_consulta.setStyleSheet("color: #8AB4F7; font-size: 16px")
+        consulta_api.addWidget(ultima_consulta)
+
+        spacer_left = QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        consulta_api.addSpacerItem(spacer_left)
+
+        contratacao_layout.addLayout(consulta_api)
+
+        # Layout para exibir `total_homologado`
+        valor_homologado_layout = QHBoxLayout()
+        valor_homologado_label = QLabel("Valor Homologado:")
+        self.valor_homologado_soma = QLabel(str(self.total_homologado))
+        valor_homologado_layout.addWidget(valor_homologado_label)
+        valor_homologado_layout.addWidget(self.valor_homologado_soma)
+        contratacao_layout.addLayout(valor_homologado_layout)
+
+        # Layout para exibir `count_informado`
+        itens_homologados_layout = QHBoxLayout()
+        itens_homologados_label = QLabel("Quantidade de Itens Homologados:")
+        self.itens_homologados_contador = QLabel(str(self.count_informado))
+        itens_homologados_layout.addWidget(itens_homologados_label)
+        itens_homologados_layout.addWidget(self.itens_homologados_contador)
+        contratacao_layout.addLayout(itens_homologados_layout)
+
+        # Layout para exibir `count_anulado_fracassado`
+        fracassados_desertos_layout = QHBoxLayout()
+        fracassados_desertos_label = QLabel("Itens Fracassados/Desertos/Não definidos:")
+        self.fracassados_desertos_contador = QLabel(str(self.count_anulado_fracassado))
+        fracassados_desertos_layout.addWidget(fracassados_desertos_label)
+        fracassados_desertos_layout.addWidget(self.fracassados_desertos_contador)
+        contratacao_layout.addLayout(fracassados_desertos_layout)
+        
         # Configura layout do GroupBox
         contratacao_group_box.setLayout(contratacao_layout)
         return contratacao_group_box
@@ -708,20 +720,7 @@ class EditarDadosWindow(QMainWindow):
     def create_classificacao_orcamentaria_group(self):
         """Cria o QGroupBox para a seção de Classificação Orçamentária."""
         classificacao_orcamentaria_group_box = QGroupBox("Classificação Orçamentária")
-        classificacao_orcamentaria_group_box.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #3C3C5A;
-                border-radius: 10px;
-                font-size: 16px;
-                font-weight: bold;
-                color: white;
-                margin-top: 13px;
-            }
-            QGroupBox:title {
-                subcontrol-origin: margin;
-                padding: 0 3px;
-            }
-        """)
+        classificacao_orcamentaria_group_box.setStyleSheet(STYLE_GROUP_BOX)
         classificacao_orcamentaria_group_box.setFixedWidth(400)
         
         layout = QVBoxLayout()
@@ -917,7 +916,8 @@ class EditarDadosWindow(QMainWindow):
                 callback=visualizar_callback,
                 tooltip_text="Clique para visualizar o PDF",
                 button_size=QSize(310, 40),
-                icon_size=QSize(40, 40)
+                icon_size=QSize(40, 40),
+                font_size=18 
             )
 
             sigdem_button = self.create_button(
@@ -926,7 +926,8 @@ class EditarDadosWindow(QMainWindow):
                 callback=sigdem_callback,
                 tooltip_text="Clique para copiar",
                 button_size=QSize(40, 40),
-                icon_size=QSize(30, 30)
+                icon_size=QSize(30, 30),
+                font_size=18 
             )
 
             button_layout.addWidget(visualizar_pdf_button)
@@ -938,6 +939,8 @@ class EditarDadosWindow(QMainWindow):
 
     def create_GrupoSIGDEM(self):       
         grupoSIGDEM = QGroupBox("SIGDEM")
+        grupoSIGDEM.setStyleSheet(STYLE_GROUP_BOX)
+
         layout = QVBoxLayout(grupoSIGDEM)
 
         icon_copy = QIcon(self.icons["copy_1"])
@@ -952,7 +955,7 @@ class EditarDadosWindow(QMainWindow):
         labelAssunto = QLabel("No campo “Assunto”:")
         layout.addWidget(labelAssunto)
         self.textEditAssunto = QTextEdit(f"{self.id_processo} - Abertura de Processo ({self.objeto})")
-        self.textEditAssunto.setMaximumHeight(60)
+        self.textEditAssunto.setMaximumHeight(40)
         layoutHAssunto = QHBoxLayout()
         layoutHAssunto.addWidget(self.textEditAssunto)
         btnCopyAssunto = self.create_button(
@@ -972,7 +975,7 @@ class EditarDadosWindow(QMainWindow):
             f"Processo Administrativo NUP: {self.nup}\n"
             f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
         )
-        self.textEditSinopse.setMaximumHeight(140)
+        self.textEditSinopse.setMaximumHeight(150) 
         layoutHSinopse = QHBoxLayout()
         layoutHSinopse.addWidget(self.textEditSinopse)
         btnCopySinopse = self.create_button(text="", icon=icon_copy, callback=lambda: self.copyToClipboard(self.textEditSinopse.toPlainText()), tooltip_text="Copiar texto para a área de transferência", button_size=QSize(40, 40), icon_size=QSize(25, 25))
@@ -996,10 +999,13 @@ class EditarDadosWindow(QMainWindow):
     def criar_e_abrir_pasta(self):
         # Cria a estrutura de pastas
         self.consolidador.verificar_e_criar_pastas(self.pasta_base / self.nome_pasta)
+        icon = self.icons.get("folder_v", None)
         
         # Após criar, tenta abrir a pasta
         self.abrir_pasta(self.pasta_base / self.nome_pasta)
-        # self.status_atualizado.emit("Pastas encontradas", str(self.ICONS_DIR / "folder_v.png"))
+        
+        # Emite o sinal para atualizar o layout de status
+        self.pastas_existentes.emit("Pastas encontradas", icon)
 
     def abrir_pasta(self, pasta_path):
         if pasta_path.exists() and pasta_path.is_dir():
@@ -1057,17 +1063,37 @@ class EditarDadosWindow(QMainWindow):
 
         return utilidades_layout
 
-    def create_button(self, text="", icon=None, callback=None, tooltip_text="", button_size=None, icon_size=None):
+    def create_button(self, text="", icon=None, callback=None, tooltip_text="", button_size=None, icon_size=None, font_size=None):
         btn = QPushButton(text)
+        
+        # Configura o ícone, se fornecido
         if icon:
             btn.setIcon(icon)
             btn.setIconSize(icon_size if icon_size else QSize(40, 40))
+        
+        # Define o tamanho do botão, se fornecido
         if button_size:
             btn.setFixedSize(button_size)
+        
+        # Aplica a dica de ferramenta
         btn.setToolTip(tooltip_text)
+        
+        # Conecta o callback ao evento de clique
         if callback:
-            btn.clicked.connect(callback)  # Conecta o callback ao evento de clique
+            btn.clicked.connect(callback)
+        
+        # Ajusta o tamanho da fonte, se fornecido
+        style = ""
+        if font_size:
+            style += f"font-size: {font_size}px;"
+        
+        btn.setStyleSheet(style)
+        
+        # Define o cursor como uma mãozinha
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
         return btn
+
     
     def atualizar_status_label(self, status_message, icon_path):
         # Atualiza o texto do status_label com a mensagem passada
@@ -1080,70 +1106,6 @@ class EditarDadosWindow(QMainWindow):
 
         # Opcional: Mude a cor do texto de status (se necessário)
         self.status_label.setStyleSheet("font-size: 14px;")
-
-    def handle_gerar_autorizacao(self):
-        self.assunto_text = f"{self.id_processo} - Abertura de Processo ({self.objeto})"
-        self.sinopse_text = (
-            f"Termo de Abertura referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
-            f"Processo Administrativo NUP: {self.nup}\n"
-            f"Setor Demandante: {self.setor_responsavel}"
-        )
-        self.update_text_fields()
-        self.consolidador.gerar_autorizacao()
-
-        # # Emite o sinal passando a mensagem de status e o ícone de sucesso (folder_v.png)
-        # self.status_atualizado.emit("Pastas encontradas", str(self.ICONS_DIR / "folder_v.png"))
-
-    def handle_gerar_autorizacao_sidgem(self):
-        self.assunto_text = f"{self.id_processo} - Abertura de Processo ({self.objeto})"
-        self.sinopse_text = (
-            f"Termo de Abertura referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
-            f"Processo Administrativo NUP: {self.nup}\n"
-            f"Setor Demandante: {self.setor_responsavel}"
-        )
-        self.update_text_fields()
-
-    def handle_gerar_comunicacao_padronizada(self):
-        self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
-        self.sinopse_text = (
-            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
-            f"Processo Administrativo NUP: {self.nup}\n"
-            f"Setor Demandante: {self.setor_responsavel}"
-        )
-        self.update_text_fields()
-        self.consolidador.gerar_comunicacao_padronizada()
-
-    def handle_gerar_comunicacao_padronizada_sidgem(self):
-        self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
-        self.sinopse_text = (
-            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
-            f"Processo Administrativo NUP: {self.nup}\n"
-            f"Setor Demandante: {self.setor_responsavel}"
-        )
-        self.update_text_fields()
-
-    def handle_gerar_aviso_dispensa(self):
-        self.assunto_text = f"{self.id_processo} - Aviso ({self.objeto})"
-        self.sinopse_text = (
-            f"Aviso referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
-            f"Processo Administrativo NUP: {self.nup}\n"
-            f"Setor Demandante: {self.setor_responsavel}"
-        )
-        self.update_text_fields()
-        self.consolidador.gerar_aviso_dispensa()
-
-    def handle_gerar_aviso_dispensa_sidgem(self):
-        self.assunto_text = f"{self.id_processo} - Aviso ({self.objeto})"
-        self.sinopse_text = (
-            f"Aviso referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
-            f"Processo Administrativo NUP: {self.nup}\n"
-            f"Setor Demandante: {self.setor_responsavel}"
-        )
-        self.update_text_fields()
-
-    def update_text_fields(self):
-        self.textEditAssunto.setPlainText(self.assunto_text)
-        self.textEditSinopse.setPlainText(self.sinopse_text)
 
     def stacked_widget_anexos(self, data):
         frame = QFrame()
@@ -1174,9 +1136,11 @@ class EditarDadosWindow(QMainWindow):
 
         # Cria um layout vertical para o título e um layout horizontal para ícones e texto
         vlayout_titulo = QVBoxLayout()
-        hlayout_titulo = QHBoxLayout()  # Layout horizontal para ícone esquerdo, título e ícone direito
 
+        # Layout horizontal para ícone esquerdo, título e ícone direito
+        hlayout_titulo = QHBoxLayout()
 
+        hlayout_titulo.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
         # Ícone à esquerda
         brasil_icon = QIcon(self.icons.get("brasil_2", None))
         image_label_esquerda = QLabel()
@@ -1191,10 +1155,10 @@ class EditarDadosWindow(QMainWindow):
         title_label = QLabel(f"{tipo} nº {numero}/{ano}", self)
 
         # Define o tamanho da fonte para 18 e em negrito
-        font = QFont()
-        font.setPointSize(18)
-        font.setBold(True)
-        title_label.setFont(font)
+        font_title = QFont()
+        font_title.setPointSize(18)
+        font_title.setBold(True)
+        title_label.setFont(font_title)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hlayout_titulo.addWidget(title_label)
 
@@ -1205,10 +1169,40 @@ class EditarDadosWindow(QMainWindow):
         image_label_direita.setPixmap(acanto_icon.pixmap(40, 40))
         hlayout_titulo.addWidget(image_label_direita)
 
+        # Adiciona outro espaçador para empurrar o ícone da direita
+        hlayout_titulo.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+
         # Adiciona o layout horizontal ao layout vertical do título
         vlayout_titulo.addLayout(hlayout_titulo)
 
-        # Cria a linha divisória com espaçamento e adiciona ao layout
+        # Criação do objeto_label com fonte 14
+        objeto = self.dados.get("objeto", "N/A")
+        material_servico = self.dados.get("material_servico", "N/A")
+        self.objeto_label = QLabel(f"{objeto} ({material_servico})", self)
+
+        font_objeto = QFont()
+        font_objeto.setPointSize(12)
+        self.objeto_label.setFont(font_objeto)
+        self.objeto_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Adiciona objeto_label ao layout de labels abaixo de title_label
+        vlayout_titulo.addWidget(self.objeto_label)
+
+        # Criação do om_label com fonte 14
+        sigla_om = self.dados.get("sigla_om", "N/A")
+        orgao_responsavel = self.dados.get("orgao_responsavel", "N/A")
+        self.uasg = self.dados.get("uasg", "N/A")
+        self.om_label = QLabel(f"{sigla_om} - {orgao_responsavel} ({ self.uasg})", self)
+
+        font_objeto = QFont()
+        font_objeto.setPointSize(12)
+        self.om_label.setFont(font_objeto)
+        self.om_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Adiciona objeto_label ao layout de labels abaixo de title_label
+        vlayout_titulo.addWidget(self.om_label)
+
+                # Cria a linha divisória com espaçamento e adiciona ao layout
         linha_divisoria, spacer_baixo_linha = linha_divisoria_layout()
         vlayout_titulo.addWidget(linha_divisoria)
         vlayout_titulo.addSpacerItem(spacer_baixo_linha)
@@ -1233,7 +1227,7 @@ class EditarDadosWindow(QMainWindow):
             self.database_path,
             dados=self.dados,
             load_sigla_om_callback=load_sigla_om,
-            on_om_changed_callback=on_om_changed
+            on_om_changed_callback=lambda om_combo, dados, db_path: on_om_changed(self, om_combo, dados, db_path)
         )
 
         situacao_om_setor_layout.addLayout(om_layout)
@@ -1283,20 +1277,7 @@ class EditarDadosWindow(QMainWindow):
         # Criação do QGroupBox para a seção Sessão Pública
         self.sessao_groupbox = QGroupBox("Sessão Pública:")
         self.sessao_groupbox.setMaximumWidth(300)
-        self.sessao_groupbox.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #3C3C5A;
-                border-radius: 10px;
-                font-size: 16px;
-                font-weight: bold;
-                color: white;
-                margin-top: 13px;
-            }
-            QGroupBox:title {
-                subcontrol-origin: margin;
-                padding: 0 3px;
-            }
-        """)
+        self.sessao_groupbox.setStyleSheet(STYLE_GROUP_BOX)
 
         group_layout = QHBoxLayout(self.sessao_groupbox)
         
@@ -1350,20 +1331,7 @@ class EditarDadosWindow(QMainWindow):
         layout = QVBoxLayout(group_box)
 
         # Aplicando o estilo CSS específico ao GroupBox
-        group_box.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #3C3C5A;
-                border-radius: 10px;
-                font-size: 16px;
-                font-weight: bold;
-                color: white;
-                margin-top: 13px;
-            }
-            QGroupBox:title {
-                subcontrol-origin: margin;
-                padding: 0 3px;
-            }
-        """)
+        group_box.setStyleSheet(STYLE_GROUP_BOX)
 
         # Layout vertical para os botões
         vlayout_botoes = QVBoxLayout()
@@ -1426,7 +1394,6 @@ class EditarDadosWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Erro ao Carregar Formulário", f"Erro ao carregar o formulário: {e}")
 
-
     def preencher_dados(self, dados_novos):
         """Preenche os campos da interface com os dados carregados"""
         try:
@@ -1462,8 +1429,10 @@ class EditarDadosWindow(QMainWindow):
         self.update_text_fields()
         self.consolidador.gerar_autorizacao()
 
-        # Emite o sinal passando a mensagem de status e o ícone de sucesso (folder_v.png)
-        self.status_atualizado.emit("Pastas encontradas", str(self.icons["folder_v"]))
+        icon = self.icons.get("folder_v", None)        
+        # Emite o sinal para atualizar o layout de status
+        self.pastas_existentes.emit("Pastas encontradas", icon)
+
 
     def handle_gerar_autorizacao_sidgem(self):
         self.assunto_text = f"{self.id_processo} - Abertura de Processo ({self.objeto})"
@@ -1516,7 +1485,6 @@ class EditarDadosWindow(QMainWindow):
         self.textEditAssunto.setPlainText(self.assunto_text)
         self.textEditSinopse.setPlainText(self.sinopse_text)
 
-
     def create_anexos_group(self):
         # LineEdit para o ID de Dispensa Eletrônica
         self.id_dispensa_eletronica = self.dados.get('id_processo', '')
@@ -1524,6 +1492,7 @@ class EditarDadosWindow(QMainWindow):
 
         # GroupBox para Anexos
         anexos_group_box = QGroupBox(f"Anexos da {id_display}")
+        anexos_group_box.setStyleSheet(STYLE_GROUP_BOX)
 
         # Layout principal do GroupBox
         anexo_layout = QVBoxLayout()
@@ -1567,7 +1536,7 @@ class EditarDadosWindow(QMainWindow):
         add_anexo_section("Documento de Formalização de Demanda (DFD)", "Anexo A - Relatório do Safin", "Anexo B - Especificações")
         add_anexo_section("Termo de Referência (TR)", "Anexo - Pesquisa de Preços")
         add_anexo_section("Declaração de Adequação Orçamentária", "Anexo - Relatório do PDM/CATSER")
-
+        add_anexo_section("Demais Documentos", "Estudo Técnico Preliminar", "Matriz de Riscos")
         justificativa_label = QLabel("Justificativas relevantes")
         anexo_layout.addWidget(justificativa_label)
 
@@ -1593,6 +1562,11 @@ class EditarDadosWindow(QMainWindow):
             return self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços'
         elif section_title == "Declaração de Adequação Orçamentária":
             return self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser'
+        elif section_title == "Demais Documentos":
+            if "Estudo" in anexo:
+                return self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'ETP'
+            elif "Matriz" in anexo:
+                return self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'MR'
         return None
 
     def define_tooltip_text(self, section_title, anexo):
@@ -1674,7 +1648,7 @@ class EditarDadosWindow(QMainWindow):
         cp_number = self.cp_edit.text()
         if cp_number:
             pastas_necessarias = self.verificar_e_criar_pastas(self.pasta_base)
-            pdf_add_dialog = PDFAddDialog(self.df_registro_selecionado, self.ICONS_DIR, pastas_necessarias, self.pasta_base, self)
+            pdf_add_dialog = PDFAddDialog(self.dados, self.icons, pastas_necessarias, self.pasta_base, self)
             if pdf_add_dialog.exec():
                 print(f"Adicionar PDF para CP nº {cp_number}")
             else:
@@ -1683,8 +1657,8 @@ class EditarDadosWindow(QMainWindow):
             QMessageBox.warning(self, "Erro", "Por favor, insira um número de CP válido.")
 
     def atualizar_action(self):
-        icon_confirm = QIcon(str(self.ICONS_DIR / "concluido.png"))
-        icon_x = QIcon(str(self.ICONS_DIR / "cancel.png"))
+        icon_confirm = QIcon(self.icons["concluido"])
+        icon_x = QIcon(self.icons["cancel"])
 
         def atualizar_anexo(section_title, anexo, label):
             pasta_anexo = None
@@ -1700,7 +1674,12 @@ class EditarDadosWindow(QMainWindow):
                 pasta_anexo = self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços'
             elif section_title == "Declaração de Adequação Orçamentária":
                 pasta_anexo = self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser'
-
+            elif section_title == "Demais Documentos":
+                if "Estudo" in anexo:
+                    pasta_anexo = self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'ETP'
+                elif "Matriz" in anexo:
+                    pasta_anexo = self.pasta_base / f'{id_processo_modificado} - {objeto_modificado}' / '2. CP e anexos' / 'MR'
+            
             if pasta_anexo:
                 print(f"Verificando pasta: {pasta_anexo}")
                 arquivos_pdf = self.verificar_arquivo_pdf(pasta_anexo)
@@ -1714,33 +1693,54 @@ class EditarDadosWindow(QMainWindow):
             for anexo, icon_label in anexos:
                 atualizar_anexo(section_title, anexo, icon_label)
 
-        self.dados_atualizados.emit()
+    def setup_consulta_api(self):
+        """Configura o layout para consulta à API com campos de CNPJ e Sequencial PNCP."""
+        group_box = QGroupBox("Consulta API", self)
+        layout = QVBoxLayout(group_box)
+        group_box.setStyleSheet(STYLE_GROUP_BOX)
 
-    def verificar_e_criar_pastas(self, pasta_base):
-        try:
-            id_processo_modificado = self.id_processo.replace("/", "-")
-            objeto_modificado = self.objeto.replace("/", "-")
-            base_path = pasta_base / f'{id_processo_modificado} - {objeto_modificado}'
+        # Layout para CNPJ
+        cnpj_layout = QHBoxLayout() 
+        label_cnpj = QLabel("CNPJ Matriz:", self)
+        label_cnpj.setStyleSheet("color: #8AB4F7; font-size: 16px")
+        cnpj_layout.addWidget(label_cnpj)
+        self.cnpj_edit = QLineEdit(str(self.dados.get('cnpj_matriz', '00394502000144')))
+        cnpj_layout.addWidget(self.cnpj_edit)
+        layout.addLayout(cnpj_layout)
 
-            pastas_necessarias = [
-                pasta_base / '1. Autorizacao',
-                pasta_base / '2. CP e anexos',
-                pasta_base / '3. Aviso',
-                pasta_base / '2. CP e anexos' / 'DFD',
-                pasta_base / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin',
-                pasta_base / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade',
-                pasta_base / '2. CP e anexos' / 'TR',
-                pasta_base / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços',
-                pasta_base / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária',
-                pasta_base / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser',
-                pasta_base / '2. CP e anexos' / 'Justificativas Relevantes',
-            ]
+        # Layout para Sequencial PNCP
+        sequencial_layout = QHBoxLayout()
+        label_sequencial = QLabel("Sequencial PNCP:", self)
+        label_sequencial.setStyleSheet("color: #8AB4F7; font-size: 16px")
+        sequencial_layout.addWidget(label_sequencial)
+        self.sequencial_edit = QLineEdit(str(self.dados.get('sequencial_pncp', '')))
+        self.sequencial_edit.setPlaceholderText("Digite o Sequencial PNCP")
+        sequencial_layout.addWidget(self.sequencial_edit)
+        layout.addLayout(sequencial_layout)
 
-            for pasta in pastas_necessarias:
-                if not pasta.exists():
-                    pasta.mkdir(parents=True)
+        # Botão de consulta
+        btn_consultar = create_button(
+            text="Consultar",
+            icon=self.icons.get("api", None),
+            callback=self.emit_request_consulta_api,  # Conectar ao método para emitir o sinal
+            tooltip_text="Clique para consultar dados usando o CNPJ e Sequencial PNCP",
+        )
+        layout.addWidget(btn_consultar)
 
-        except (FileNotFoundError, PermissionError) as e:
-            QMessageBox.critical(self, "Erro ao criar pastas", f"Não foi possível criar as pastas necessárias devido ao erro: {str(e)}. Por favor, selecione uma nova pasta base na aba 'Documentos'.")
-            
-        return pastas_necessarias
+        return group_box
+
+    def emit_request_consulta_api(self):
+        """Emite o sinal request_consulta_api com os parâmetros necessários para a consulta."""
+        cnpj = self.cnpj_edit.text()
+        ano = self.dados.get('ano', None)
+        sequencial = self.sequencial_edit.text()
+        uasg = self.dados.get('uasg', None)
+        numero = self.dados.get('numero', None)
+        self.request_consulta_api.emit(cnpj, ano, sequencial, uasg, numero)
+
+    # def on_link_pncp_clicked(self, link_pncp, cnpj, ano):
+    #     # Montando a URL
+    #     url = f"https://pncp.gov.br/app/editais/{cnpj}/{ano}/{link_pncp}"
+
+    #     # Abrindo o link no navegador padrão
+    #     QDesktopServices.openUrl(QUrl(url))

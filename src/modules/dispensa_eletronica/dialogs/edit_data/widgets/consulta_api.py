@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 from src.modules.utils.add_button import create_button
-
+from src.modules.dispensa_eletronica.dialogs.edit_data.apoio_data import STYLE_GROUP_BOX
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton
 
 def setup_consulta_api(parent, icons, data, max_width=300):
@@ -12,21 +12,7 @@ def setup_consulta_api(parent, icons, data, max_width=300):
     layout = QVBoxLayout(group_box)
 
     # Aplicando o estilo CSS específico ao GroupBox
-    group_box.setStyleSheet("""
-        QGroupBox {
-            border: 1px solid #3C3C5A;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            color: white;
-            margin-top: 13px;
-        }
-        QGroupBox:title {
-            subcontrol-origin: margin;
-            padding: 0 3px;
-        }
-    """)
-
+    group_box.setStyleSheet(STYLE_GROUP_BOX)
     # Layout para CNPJ Matriz
     cnpj_layout = QHBoxLayout() 
     label_cnpj = QLabel("CNPJ Matriz:", parent)
