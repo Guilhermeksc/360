@@ -39,7 +39,7 @@ class DashboardWidget(QWidget):
 
         # Configura o QGroupBox da seção "Efetivo" com subseções
         efetivo_groupbox = QGroupBox("Efetivo")
-        efetivo_layout = QVBoxLayout(efetivo_groupbox)
+        efetivo_layout = QHBoxLayout(efetivo_groupbox)
         efetivo_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         efetivo_groupbox.setStyleSheet("""
             QGroupBox {

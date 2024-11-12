@@ -47,7 +47,7 @@ def load_sigla_om(database_path, om_combo, sigla_om):
             items = [row[0] for row in cursor.fetchall()]
             om_combo.addItems(items)
             om_combo.setCurrentText(sigla_om)  # Define o texto atual do combo
-            print(f"Loaded sigla_om items: {items}")
+            # print(f"Loaded sigla_om items: {items}")
     except Exception as e:
         QMessageBox.warning(None, "Erro", f"Erro ao carregar OM: {e}")
         print(f"Error loading sigla_om: {e}")

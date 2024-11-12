@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATABASE_DIR = BASE_DIR / "database"
@@ -26,3 +27,15 @@ HOME_PATH = BASE_DIR / "main.py"
 CONTROLE_ATAS_DIR = DATABASE_DIR / "Atas"
 
 TEMPLATE_DISPENSA_DIR = DISPENSA_ELETRONICA_DIR / "template"
+
+CONFIG_FILE = 'config.json'
+
+def load_config_path_id():
+    if not Path(CONFIG_FILE).exists():
+        return {}
+    with open(CONFIG_FILE, 'r') as file:
+        return json.load(file)
+
+def save_config(config):
+    with open(CONFIG_FILE, 'w') as file:
+        json.dump(config, file)

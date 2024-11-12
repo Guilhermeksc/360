@@ -13,6 +13,7 @@ from src.config.paths import CONTROLE_DADOS
 import sqlite3
 import os
 from src.modules.dispensa_eletronica.dados_api.api_consulta import ConsultaAPIDialog
+
 class DispensaEletronicaController(QObject): 
     def __init__(self, icons, view, model):
         super().__init__()
@@ -122,7 +123,7 @@ class DispensaEletronicaController(QObject):
         
         # Monta o nome da tabela com base nos dados
         table_name = f"{cnpj_matriz}_1_{sequencial_pncp}_{ano}"
-        print(f"DEBUG: Nome da tabela a ser verificada: {table_name}")
+        # print(f"DEBUG: Nome da tabela a ser verificada: {table_name}")
 
         # Conecta ao banco de dados para verificar se a tabela existe e realizar as consultas
         try:
@@ -134,7 +135,7 @@ class DispensaEletronicaController(QObject):
                 table_exists = cursor.fetchone() is not None
                 
                 if table_exists:
-                    print(f"Sucesso: A tabela '{table_name}' existe no banco de dados.")
+                    # print(f"Sucesso: A tabela '{table_name}' existe no banco de dados.")
                     
                     # Calcula `total_homologado`
                     cursor.execute(f'SELECT SUM(valorTotalHomologado) FROM "{table_name}" WHERE valorTotalHomologado IS NOT NULL')

@@ -4,44 +4,24 @@ from PyQt6.QtCore import *
 from PyQt6.QtSql import QSqlDatabase, QSqlTableModel
 from src.modules.utils.add_button import add_button, add_button_func, create_button
 from src.modules.utils.brl import formatar_para_brl, CustomQLineEdit
-from src.modules.dispensa_eletronica.dados_api.api_consulta import ConsultaAPIDialog
 from src.modules.dispensa_eletronica.dialogs.edit_data.apoio_data import COLUNAS_LEGIVEIS, COLUNAS_LEGIVEIS_INVERSO, CORRECAO_VALORES, STYLE_GROUP_BOX
-from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.gerar_documentos import ConsolidarDocumentos, PDFAddDialog
-from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.sigdem_layout import create_GrupoSIGDEM, create_utilidades_group
-from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.setor_responsavel import create_dados_responsavel_contratacao_group
+from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.gerenciador_anexos.gerar_documentos import ConsolidarDocumentos
+from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.gerenciador_anexos.pdf_add_dialog import PDFAddDialog
 from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.formulario import TableCreationWorker
 from src.modules.utils.linha_layout import linha_divisoria_layout, linha_divisoria_sem_spacer_layout
 from src.modules.utils.select_om import create_selecao_om_layout, load_sigla_om, on_om_changed
 from src.modules.utils.agentes_responsaveis_layout import create_combo_box, carregar_agentes_responsaveis
 from pathlib import Path
-from src.config.paths import CONTROLE_DADOS, DATA_DISPENSA_ELETRONICA_PATH
-import json
+from src.config.paths import *
 import pandas as pd
 import os
 import subprocess
-from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, Border, Side, PatternFill, Alignment
-from openpyxl.utils import get_column_letter
-from src.modules.utils.add_button import add_button, add_button_func
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 import sqlite3
-
-CONFIG_FILE = 'config.json'
-
-def load_config_path_id():
-    if not Path(CONFIG_FILE).exists():
-        return {}
-    with open(CONFIG_FILE, 'r') as file:
-        return json.load(file)
-
-def save_config(config):
-    with open(CONFIG_FILE, 'w') as file:
-        json.dump(config, file)
 
 def number_to_text(number):
     numbers_in_words = ["um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "doze"]
     return numbers_in_words[number - 1] 
+
 class EditarDadosWindow(QMainWindow):
     save_data_signal = pyqtSignal(dict)
     save_data_api_signal = pyqtSignal(dict)
@@ -49,7 +29,7 @@ class EditarDadosWindow(QMainWindow):
     status_atualizado = pyqtSignal(str, str)
     pastas_existentes = pyqtSignal(str, QIcon)
     formulario_carregado = pyqtSignal(pd.DataFrame)
-
+    
     def __init__(self, dados, icons, total_homologado=0, count_anulado_fracassado=0, count_informado=0, table_name="", parent=None):
     # def __init__(self, dados, icons, parent=None):
         super().__init__(parent)
@@ -65,7 +45,7 @@ class EditarDadosWindow(QMainWindow):
         self.dados_api = None 
 
         self.status_atualizado.connect(self.atualizar_om_label)
-        self.pastas_existentes.connect(self.atualizar_status_layout)
+        self.pastas_existentes.connect(self.atualizar_status_label)
         # self.formulario_carregado.connect(self.on_formulario_carregado)
 
         # Configurações gerais da janela
@@ -80,6 +60,45 @@ class EditarDadosWindow(QMainWindow):
         # Inicialização da interface gráfica e configuração da UI
         self.setup_ui()
         self.carregar_dados_api() 
+
+    def carregar_referencias(self):       
+        # Referências aos RadioButtons para material_servico, com_disputa e pesquisa_preco
+        self.radio_material = None
+        self.radio_servico = None
+        self.radio_disputa_sim = None
+        self.radio_disputa_nao = None
+        self.radio_pesquisa_sim = None
+        self.radio_pesquisa_nao = None
+        self.selected_button = None
+        self.valor_total_edit = None
+        # Inicialização do stacked_widget com estilo aplicado
+        self.stacked_widget = QStackedWidget(self)
+        self.stacked_widget.setStyleSheet("""
+            QLabel { font-size: 16px; }
+            QCheckBox { font-size: 16px; }
+            QLineEdit { font-size: 14px; }
+        """)
+        # Inicialização do mapa de widgets
+        self.widgets_map = {}
+        self.database_path_api = DATA_DISPENSA_ELETRONICA_PATH
+        # Configurações de caminho e base de dados
+        self.database_path = CONTROLE_DADOS
+        self.config = load_config_path_id()
+        self.pasta_base = Path(self.config.get('pasta_base', str(Path.home() / 'Desktop')))
+        # Consolidador de documentos
+        self.consolidador = ConsolidarDocumentos(self.dados, self.icons, documentos_encontrados=[])
+
+        self.consolidador.status_atualizado.connect(self.atualizar_status_label)
+
+        # Label de status para mostrar atualizações de consolidação
+        self.status_label = QLabel(self)
+
+        # Utilização dos dicionários externos
+        self.colunas_legiveis = COLUNAS_LEGIVEIS
+        self.colunas_legiveis_inverso = COLUNAS_LEGIVEIS_INVERSO
+        # Mapas de normalização de valores para campos específicos
+        self.normalizacao_valores = CORRECAO_VALORES
+        self.save_data_signal.connect(self.consolidador.update_data)
 
     def carregar_dados_api(self):
         """Carrega os dados da tabela específica no DataFrame `self.dados_api`."""
@@ -105,7 +124,7 @@ class EditarDadosWindow(QMainWindow):
         material_servico = "Serviço" if self.radio_servico.isChecked() else "Material"
         self.objeto_label.setText(f"{objeto_text} ({material_servico})")
 
-    def atualizar_status_layout(self, status_text, icon):
+    def atualizar_status_label(self, status_text, icon):
         """Atualiza o status_label e icon_label com o texto e ícone fornecidos."""
         self.status_label.setText(status_text)
         if icon and isinstance(icon, QIcon):
@@ -118,107 +137,6 @@ class EditarDadosWindow(QMainWindow):
         """Formata o texto do QLineEdit para BRL quando perde o foco."""
         texto = self.valor_total_edit.text()
         self.valor_total_edit.setText(formatar_para_brl(texto))
-
-    def carregar_referencias(self):
-        """Configura as referências, widgets, e objetos utilizados na classe."""
-        
-        # Referências aos RadioButtons para material_servico, com_disputa e pesquisa_preco
-        self.radio_material = None
-        self.radio_servico = None
-        self.radio_disputa_sim = None
-        self.radio_disputa_nao = None
-        self.radio_pesquisa_sim = None
-        self.radio_pesquisa_nao = None
-        self.selected_button = None
-        self.valor_total_edit = None 
-        # Inicialização do stacked_widget com estilo aplicado
-        self.stacked_widget = QStackedWidget(self)
-        self.stacked_widget.setStyleSheet("""
-            QLabel { font-size: 16px; }
-            QCheckBox { font-size: 16px; }
-            QLineEdit { font-size: 14px; }
-        """)
-        # Inicialização do mapa de widgets
-        self.widgets_map = {}
-        self.database_path_api = DATA_DISPENSA_ELETRONICA_PATH
-        # Configurações de caminho e base de dados
-        self.database_path = CONTROLE_DADOS
-        self.config = load_config_path_id()
-        self.pasta_base = Path(self.config.get('pasta_base', str(Path.home() / 'Desktop')))
-
-        # Consolidador de documentos
-        self.consolidador = ConsolidarDocumentos(self.dados, self.icons)
-        self.consolidador.status_atualizado.connect(self.atualizar_status)
-
-        # Label de status para mostrar atualizações de consolidação
-        self.status_label = QLabel(self)
-
-        # Utilização dos dicionários externos
-        self.colunas_legiveis = COLUNAS_LEGIVEIS
-        self.colunas_legiveis_inverso = COLUNAS_LEGIVEIS_INVERSO
-
-        # Mapas de normalização de valores para campos específicos
-        self.normalizacao_valores = CORRECAO_VALORES
-
-        self.save_data_signal.connect(self.consolidador.update_data)
-        
-    def verificar_pastas(self, pasta_base):
-        # Acesse o id_processo a partir de self.dados
-        id_processo = self.dados.get('id_processo', 'desconhecido').replace("/", "-")  # Use uma chave de dicionário
-        objeto = self.dados.get('objeto', 'objeto_desconhecido').replace("/", "-")  # Acessando corretamente o objeto
-
-        base_path = pasta_base / f'{id_processo} - {objeto}'
-
-        pastas_necessarias = [
-            base_path / '1. Autorizacao',
-            base_path / '2. CP e anexos',
-            base_path / '3. Aviso',
-            base_path / '2. CP e anexos' / 'DFD',
-            base_path / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin',
-            base_path / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade',
-            base_path / '2. CP e anexos' / 'TR',
-            base_path / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços',
-            base_path / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária',
-            base_path / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser',
-            base_path / '2. CP e anexos' / 'Justificativas Relevantes',
-            base_path / '2. CP e anexos' / 'ETP',
-            base_path / '2. CP e anexos' / 'MR',
-        ]
-
-        # Verifica se todas as pastas necessárias existem
-        pastas_existentes = all(pasta.exists() for pasta in pastas_necessarias)
-        return pastas_existentes
-
-    def verificar_e_criar_pastas(self, pasta_base):
-        try:
-            id_processo_modificado = self.id_processo.replace("/", "-")
-            objeto_modificado = self.objeto.replace("/", "-")
-            base_path = pasta_base / f'{id_processo_modificado} - {objeto_modificado}'
-
-            pastas_necessarias = [
-                pasta_base / '1. Autorizacao',
-                pasta_base / '2. CP e anexos',
-                pasta_base / '3. Aviso',
-                pasta_base / '2. CP e anexos' / 'DFD',
-                pasta_base / '2. CP e anexos' / 'DFD' / 'Anexo A - Relatorio Safin',
-                pasta_base / '2. CP e anexos' / 'DFD' / 'Anexo B - Especificações e Quantidade',
-                pasta_base / '2. CP e anexos' / 'TR',
-                pasta_base / '2. CP e anexos' / 'TR' / 'Pesquisa de Preços',
-                pasta_base / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária',
-                pasta_base / '2. CP e anexos' / 'Declaracao de Adequação Orçamentária' / 'Relatório do PDM-Catser',
-                pasta_base / '2. CP e anexos' / 'Justificativas Relevantes',
-                pasta_base / '2. CP e anexos' / 'ETP',
-                pasta_base / '2. CP e anexos' / 'MR',
-            ]
-
-            for pasta in pastas_necessarias:
-                if not pasta.exists():
-                    pasta.mkdir(parents=True)
-
-        except (FileNotFoundError, PermissionError) as e:
-            QMessageBox.critical(self, "Erro ao criar pastas", f"Não foi possível criar as pastas necessárias devido ao erro: {str(e)}. Por favor, selecione uma nova pasta base na aba 'Documentos'.")
-            
-        return pastas_necessarias
         
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:
@@ -341,22 +259,8 @@ class EditarDadosWindow(QMainWindow):
             'responsavel_pela_demanda': self.responsavel_demanda_combo.currentText(),
             'operador': self.operador_dispensa_combo.currentText()
         })
-        
-        # Debug para verificar o conteúdo de data_to_save
-        print("Dados para salvar:", data_to_save)
-
         # Emissão do sinal para salvar os dados
         self.save_data_signal.emit(data_to_save)
-
-    def atualizar_status(self, status_texto, icone_path):
-        """Atualiza o texto e o ícone do status_label"""
-        # Print para verificar a recepção do sinal
-        print(f"Received signal in atualizar_status with status_texto: '{status_texto}', icone_path: '{icone_path}'")
-        
-        self.status_label.setText(status_texto)
-        icon_folder = QIcon(icone_path)
-        icon_pixmap = icon_folder.pixmap(30, 30)
-        self.icon_label.setPixmap(icon_pixmap)  # Atualiza o pixmap do ícone
 
     def setup_ui(self):
         # Configura o widget principal e define o fundo preto e borda
@@ -396,7 +300,7 @@ class EditarDadosWindow(QMainWindow):
 
         # Configuração dos widgets no QStackedWidget
         self.setup_stacked_widgets()
-
+    
     def create_navigation_layout(self):
         # Criação do frame que conterá o nav_layout e aplicará a borda inferior
         nav_frame = QFrame()
@@ -434,12 +338,14 @@ class EditarDadosWindow(QMainWindow):
                 self.selected_button = button  # Mantém o botão "Informações" como o selecionado inicial
 
         nav_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
-
-        # Verifica se as pastas existem e define o ícone e status
-        pastas_existentes = self.verificar_pastas(self.pasta_base)
+        
+        # Verifica se as pastas existem no caminho completo com self.nome_pasta
+        pastas_existentes = self.consolidador.verificar_pastas(criar=False)
         status_text = "Pastas encontradas" if pastas_existentes else "Pastas não encontradas"
         icon_key = "folder_v" if pastas_existentes else "folder_x"
         icon = self.icons.get(icon_key)
+
+        # Atualiza os labels de status e ícone
         self.status_label = QLabel(status_text)
         self.icon_label = QLabel()
         if icon and isinstance(icon, QIcon):
@@ -453,7 +359,6 @@ class EditarDadosWindow(QMainWindow):
         status_layout.addStretch()
         nav_layout.addLayout(status_layout)
 
-        # Define o estilo para os botões dentro do nav_layout
         self.setStyleSheet("""
             QPushButton[class="nav-button"] {
                 background-color: #181928;
@@ -514,7 +419,7 @@ class EditarDadosWindow(QMainWindow):
             "Setor Responsável": self.stacked_widget_responsaveis(self.dados),
             "Documentos": self.stacked_widget_documentos(self.dados),
             "Anexos": self.stacked_widget_anexos(self.dados),
-            "Resultados": self.stacked_widget_pncp(),  # Certifique-se de que o método está retornando um widget
+            "Resultados": self.stacked_widget_pncp(),
         }
 
         # Adiciona cada widget ao QStackedWidget e verifica se foi adicionado com sucesso
@@ -1034,15 +939,17 @@ class EditarDadosWindow(QMainWindow):
         QToolTip.showText(QCursor.pos(), "Texto copiado para a área de transferência.", msecShowTime=1500)
 
     def criar_e_abrir_pasta(self):
-        # Cria a estrutura de pastas
-        self.consolidador.verificar_e_criar_pastas(self.pasta_base / self.nome_pasta)
-        icon = self.icons.get("folder_v", None)
-        
-        # Após criar, tenta abrir a pasta
+        # Verifica e cria a estrutura de pastas usando self.consolidador
+        pastas_existentes = self.consolidador.verificar_pastas(criar=True) 
+        # Define o ícone conforme o status das pastas
+        icon_key = "folder_v" if pastas_existentes else "folder_x"
+        icon = self.icons.get(icon_key, None)
+        # Tenta abrir a pasta criada
         self.abrir_pasta(self.pasta_base / self.nome_pasta)
-        
+        # Determina o texto do status
+        status_text = "Pastas encontradas" if pastas_existentes else "Pastas não encontradas"
         # Emite o sinal para atualizar o layout de status
-        self.pastas_existentes.emit("Pastas encontradas", icon)
+        self.pastas_existentes.emit(status_text, icon)
 
     def abrir_pasta(self, pasta_path):
         if pasta_path.exists() and pasta_path.is_dir():
@@ -1071,7 +978,7 @@ class EditarDadosWindow(QMainWindow):
         criar_pasta_button = self.create_button(
             "Criar e Abrir Pasta", 
             icon=icon_criar_pasta, 
-            callback=self.criar_e_abrir_pasta,  # Chama a função que cria e abre a pasta
+            callback=self.criar_e_abrir_pasta,  
             tooltip_text="Clique para criar a estrutura de pastas e abrir", 
             button_size=QSize(210, 40), 
             icon_size=QSize(40, 40)
@@ -1085,8 +992,9 @@ class EditarDadosWindow(QMainWindow):
             callback=self.consolidador.alterar_diretorio_base, 
             tooltip_text="Clique para alterar o local de salvamento dos arquivos", 
             button_size=QSize(210, 40), icon_size=QSize(40, 40)
-            )
+        )
         utilidades_layout.addWidget(editar_registro_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
         # Botão para abrir o arquivo de registro
         visualizar_pdf_button = self.create_button(
             "Editar Modelos", 
@@ -1094,8 +1002,7 @@ class EditarDadosWindow(QMainWindow):
             callback=self.consolidador.editar_modelo, 
             tooltip_text="Clique para editar os modelos dos documentos", 
             button_size=QSize(210, 40), icon_size=QSize(40, 40)
-            )
-        
+        )
         utilidades_layout.addWidget(visualizar_pdf_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         return utilidades_layout
@@ -1130,19 +1037,6 @@ class EditarDadosWindow(QMainWindow):
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         
         return btn
-
-    
-    def atualizar_status_label(self, status_message, icon_path):
-        # Atualiza o texto do status_label com a mensagem passada
-        self.status_label.setText(status_message)
-
-        # Atualiza o ícone
-        icon_folder = QIcon(icon_path)
-        icon_pixmap = icon_folder.pixmap(30, 30)  # Define o tamanho do ícone
-        self.icon_label.setPixmap(icon_pixmap)
-
-        # Opcional: Mude a cor do texto de status (se necessário)
-        self.status_label.setStyleSheet("font-size: 14px;")
 
     def stacked_widget_anexos(self, data):
         frame = QFrame()
@@ -1516,14 +1410,38 @@ class EditarDadosWindow(QMainWindow):
         self.update_text_fields()
 
     def handle_gerar_comunicacao_padronizada(self):
+        print("Iniciando handle_gerar_comunicacao_padronizada...")  # Print de depuração
+
         self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
         self.sinopse_text = (
-            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, "
+            f"para {self.get_descricao_servico()} {self.objeto}\n"
             f"Processo Administrativo NUP: {self.nup}\n"
-            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
+            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}\n"
         )
-        self.update_text_fields()
-        self.consolidador.gerar_comunicacao_padronizada()
+
+        # Chama a função para verificar PDFs existentes
+        print("Chamando verificar_pdfs_existentes...")  # Print de depuração antes da chamada
+        self.consolidador.documentos_encontrados = self.consolidador.verificar_pdfs_existentes()
+
+        # Verifica e imprime os documentos encontrados para depuração
+        print("Documentos encontrados após verificar_pdfs_existentes:")
+        if self.consolidador.documentos_encontrados:
+            for doc in self.consolidador.documentos_encontrados:
+                print(f"- {doc}")
+        else:
+            print("Nenhum documento encontrado.")
+
+        # Adiciona os documentos verificados à sinopse
+        self.sinopse_text += "\n".join(self.consolidador.documentos_encontrados)
+
+        # Imprime o conteúdo da sinopse após a inclusão dos documentos
+        print("Sinopse atualizada:")
+        print(self.sinopse_text)
+
+        self.update_text_fields()  # Atualiza os campos de texto
+        self.consolidador.gerar_comunicacao_padronizada(self.consolidador.documentos_encontrados)
+
 
     def handle_gerar_comunicacao_padronizada_sidgem(self):
         self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
@@ -1717,16 +1635,15 @@ class EditarDadosWindow(QMainWindow):
         layout.addLayout(button_layout_atualizar)
 
     def add_pdf_to_merger(self):
-        cp_number = self.cp_edit.text()
-        if cp_number:
-            pastas_necessarias = self.verificar_e_criar_pastas(self.pasta_base)
-            pdf_add_dialog = PDFAddDialog(self.dados, self.icons, pastas_necessarias, self.pasta_base, self)
-            if pdf_add_dialog.exec():
-                print(f"Adicionar PDF para CP nº {cp_number}")
-            else:
-                print("Ação de adicionar PDF cancelada.")
+        # Verifica as pastas necessárias
+        pastas_necessarias = self.consolidador.verificar_pastas(criar=False)
+        # Abre o diálogo para adicionar PDF
+        pdf_add_dialog = PDFAddDialog(self.dados, self.icons, pastas_necessarias, self.consolidador.pasta_base, self)
+        if pdf_add_dialog.exec():
+            cp_number = self.cp_edit.text()  # Pega o número de CP, se houver
+            print(f"Adicionar PDF para CP nº {cp_number}" if cp_number else "Adicionar PDF")
         else:
-            QMessageBox.warning(self, "Erro", "Por favor, insira um número de CP válido.")
+            print("Ação de adicionar PDF cancelada.")
 
     def atualizar_action(self):
         icon_confirm = QIcon(self.icons["concluido"])

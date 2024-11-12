@@ -1,11 +1,7 @@
 import sys
 from PyQt6.QtWidgets import QApplication
-from src.config.paths import STYLE_PATH
 from src.main import MainWindow
-
-def load_stylesheet(app):
-    with open(STYLE_PATH, "r") as f:
-        app.setStyleSheet(f.read())
+from paulovitor.load_sheet import load_stylesheet
 
 def run():
     app = QApplication(sys.argv)

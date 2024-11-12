@@ -4,7 +4,6 @@ from PyQt6.QtCore import *
 from src.modules.utils.add_button import add_button, add_button_func, create_button
 from src.modules.dispensa_eletronica.dados_api.api_consulta import ConsultaAPIDialog
 from src.modules.dispensa_eletronica.dialogs.edit_data.apoio_data import COLUNAS_LEGIVEIS, COLUNAS_LEGIVEIS_INVERSO, CORRECAO_VALORES, STYLE_GROUP_BOX
-from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.gerar_documentos import ConsolidarDocumentos, PDFAddDialog
 from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.sigdem_layout import create_GrupoSIGDEM, create_utilidades_group
 from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.setor_responsavel import create_dados_responsavel_contratacao_group
 from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.formulario import TableCreationWorker
@@ -17,9 +16,6 @@ import json
 import pandas as pd
 import os
 import subprocess
-from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, Border, Side, PatternFill, Alignment
-from openpyxl.utils import get_column_letter
 from src.modules.utils.add_button import add_button, add_button_func
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
@@ -123,9 +119,6 @@ class EditarDadosWindow(QMainWindow):
         self.config = load_config_path_id()
         self.pasta_base = Path(self.config.get('pasta_base', str(Path.home() / 'Desktop')))
 
-        # Consolidador de documentos
-        self.consolidador = ConsolidarDocumentos(self.dados, self.icons)
-        self.consolidador.status_atualizado.connect(self.atualizar_status)
 
         # Label de status para mostrar atualizações de consolidação
         self.status_label = QLabel(self)
@@ -1450,12 +1443,23 @@ class EditarDadosWindow(QMainWindow):
     def handle_gerar_comunicacao_padronizada(self):
         self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
         self.sinopse_text = (
-            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, para {self.get_descricao_servico()} {self.objeto}\n"
+            f"Documentos de Planejamento (DFD, TR e Declaração de Adequação Orçamentária) referente à {self.tipo} nº {self.numero}/{self.ano}, "
+            f"para {self.get_descricao_servico()} {self.objeto}\n"
             f"Processo Administrativo NUP: {self.nup}\n"
-            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}"
+            f"Setor Demandante: {self.setor_responsavel_combo.currentText()}\n"
         )
-        self.update_text_fields()
-        self.consolidador.gerar_comunicacao_padronizada()
+
+        # Chama a função para verificar PDFs existentes
+        documentos = self.consolidador.verificar_pdfs_existentes()
+        self.sinopse_text += "\n".join(documentos)  # Adiciona os documentos verificados à sinopse
+        
+        # Imprime a lista de documentos para verificar o conteúdo
+        print("Documentos verificados para inclusão:")
+        for documento in documentos:
+            print(documento)
+
+        self.update_text_fields()  # Atualiza os campos de texto
+        self.consolidador.gerar_comunicacao_padronizada()  # Chama a função de geração de comunicação
 
     def handle_gerar_comunicacao_padronizada_sidgem(self):
         self.assunto_text = f"{self.id_processo} - Documentos de Planejamento ({self.objeto})"
@@ -1619,14 +1623,6 @@ class EditarDadosWindow(QMainWindow):
         icon_browser = QIcon(self.icons["browser"])
         icon_refresh = QIcon(self.icons["refresh"])       
 
-        add_pdf_button = self.create_button(
-            " Visualizar Anexos",
-            icon_browser,
-            self.add_pdf_to_merger,
-            "Visualizar anexos PDFs",
-            QSize(220, 40), QSize(30, 30)
-        )
-
         atualizar_button = self.create_button(
             "   Atualizar Pastas  ",
             icon_refresh,
@@ -1635,30 +1631,12 @@ class EditarDadosWindow(QMainWindow):
             QSize(220, 40), QSize(30, 30)
         )
 
-        button_layout_anexo = QHBoxLayout()
-        button_layout_anexo.addStretch()
-        button_layout_anexo.addWidget(add_pdf_button)
-        button_layout_anexo.addStretch()
-
         button_layout_atualizar = QHBoxLayout()
         button_layout_atualizar.addStretch()
         button_layout_atualizar.addWidget(atualizar_button)
         button_layout_atualizar.addStretch()
 
-        layout.addLayout(button_layout_anexo)
         layout.addLayout(button_layout_atualizar)
-
-    def add_pdf_to_merger(self):
-        cp_number = self.cp_edit.text()
-        if cp_number:
-            pastas_necessarias = self.verificar_e_criar_pastas(self.pasta_base)
-            pdf_add_dialog = PDFAddDialog(self.dados, self.icons, pastas_necessarias, self.pasta_base, self)
-            if pdf_add_dialog.exec():
-                print(f"Adicionar PDF para CP nº {cp_number}")
-            else:
-                print("Ação de adicionar PDF cancelada.")
-        else:
-            QMessageBox.warning(self, "Erro", "Por favor, insira um número de CP válido.")
 
     def atualizar_action(self):
         icon_confirm = QIcon(self.icons["concluido"])

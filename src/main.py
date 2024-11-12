@@ -1,4 +1,3 @@
-import sys
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
@@ -8,9 +7,9 @@ from src.modules.widgets import *
 from src.config.dialogs import * 
 
 class MainWindow(QMainWindow):
-    def __init__(self, app):
+    def __init__(self, application):
         super().__init__()
-        self.app = app
+        self.app = application
         self.icons = load_icons()
         self.buttons = {}
         self.active_button = None

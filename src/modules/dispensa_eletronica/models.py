@@ -139,7 +139,8 @@ class DispensaEletronicaModel(QObject):
             print("Tabela 'controle_dispensas' não existe. Criando tabela...")
             self.create_table_if_not_exists()
         else:
-            print("Tabela 'controle_dispensas' existe. Verificando estrutura da coluna...")
+            pass
+            # print("Tabela 'controle_dispensas' existe. Verificando estrutura da coluna...")
 
     def save_api_data_to_database(self, data_api):
         # Obtém o valor de 'numeroControlePNCP' para nome da tabela
