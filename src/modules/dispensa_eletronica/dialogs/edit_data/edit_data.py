@@ -3,6 +3,7 @@ from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 from PyQt6.QtSql import QSqlDatabase, QSqlTableModel
 from src.modules.utils.add_button import add_button, add_button_func, create_button
+from src.modules.utils.brl import formatar_para_brl, CustomQLineEdit
 from src.modules.dispensa_eletronica.dados_api.api_consulta import ConsultaAPIDialog
 from src.modules.dispensa_eletronica.dialogs.edit_data.apoio_data import COLUNAS_LEGIVEIS, COLUNAS_LEGIVEIS_INVERSO, CORRECAO_VALORES, STYLE_GROUP_BOX
 from src.modules.dispensa_eletronica.dialogs.edit_data.widgets.gerar_documentos import ConsolidarDocumentos, PDFAddDialog
@@ -41,7 +42,6 @@ def save_config(config):
 def number_to_text(number):
     numbers_in_words = ["um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "doze"]
     return numbers_in_words[number - 1] 
-    
 class EditarDadosWindow(QMainWindow):
     save_data_signal = pyqtSignal(dict)
     save_data_api_signal = pyqtSignal(dict)
@@ -113,7 +113,12 @@ class EditarDadosWindow(QMainWindow):
             self.icon_label.setPixmap(icon_pixmap)
         else:
             self.icon_label.clear()  # Limpa o ícone se não houver um válido
-            
+
+    def on_focus_out(self):
+        """Formata o texto do QLineEdit para BRL quando perde o foco."""
+        texto = self.valor_total_edit.text()
+        self.valor_total_edit.setText(formatar_para_brl(texto))
+
     def carregar_referencias(self):
         """Configura as referências, widgets, e objetos utilizados na classe."""
         
@@ -125,6 +130,7 @@ class EditarDadosWindow(QMainWindow):
         self.radio_pesquisa_sim = None
         self.radio_pesquisa_nao = None
         self.selected_button = None
+        self.valor_total_edit = None 
         # Inicialização do stacked_widget com estilo aplicado
         self.stacked_widget = QStackedWidget(self)
         self.stacked_widget.setStyleSheet("""
@@ -730,6 +736,20 @@ class EditarDadosWindow(QMainWindow):
         fracassados_desertos_layout.addWidget(self.fracassados_desertos_contador)
         contratacao_layout.addLayout(fracassados_desertos_layout)
         
+        indice_economicidade_layout = QHBoxLayout()
+        indice_economicidade_label = QLabel("Índice de Economicidade:")
+        self.indice_economicidade = QLabel("XXX")
+        indice_economicidade_layout.addWidget(indice_economicidade_label)
+        indice_economicidade_layout.addWidget(self.indice_economicidade)
+        contratacao_layout.addLayout(indice_economicidade_layout)
+
+        indice_conformidade_preco_layout = QHBoxLayout()
+        indice_conformidade_preco_label = QLabel("Índice de Conformidade de Preço:")
+        self.indice_conformidade_preco = QLabel("XXX")
+        indice_conformidade_preco_layout.addWidget(indice_conformidade_preco_label)
+        indice_conformidade_preco_layout.addWidget(self.indice_conformidade_preco)
+        contratacao_layout.addLayout(indice_conformidade_preco_layout)
+
         # Configura layout do GroupBox
         contratacao_group_box.setLayout(contratacao_layout)
         return contratacao_group_box
@@ -745,11 +765,13 @@ class EditarDadosWindow(QMainWindow):
         # Criando cada campo de entrada e armazenando como atributo da classe
         valor_total_layout = QHBoxLayout()
         valor_total_label = QLabel("Valor Estimado:")
-        self.valor_total_edit = QLineEdit(str(self.dados.get('valor_total', '')))
+        # Obtém o valor inicial e passa para o campo
+        valor_inicial = self.dados.get('valor_total', '0')
+        self.valor_total_edit = CustomQLineEdit(valor_inicial)
+
         valor_total_layout.addWidget(valor_total_label)
         valor_total_layout.addWidget(self.valor_total_edit)
         layout.addLayout(valor_total_layout)
-
         acao_interna_layout = QHBoxLayout()
         acao_interna_label = QLabel("Ação Interna:")
         self.acao_interna_edit = QLineEdit(str(self.dados.get('acao_interna', '')))
@@ -819,13 +841,11 @@ class EditarDadosWindow(QMainWindow):
         self.cp_edit = QLineEdit(str(self.dados.get('comunicacao_padronizada', '')))
         par_layout.addWidget(cp_label)
         par_layout.addWidget(self.cp_edit)
-        layout.addLayout(par_layout)
 
         par_label = QLabel("Meta do PAR:")
         self.par_edit = QLineEdit(str(self.dados.get('cod_par', '')))
         par_layout.addWidget(par_label)
         par_layout.addWidget(self.par_edit)
-        layout.addLayout(par_layout)
 
         prioridade = QLabel("Prioridade:")
         self.prioridade_combo = QComboBox()
@@ -931,8 +951,8 @@ class EditarDadosWindow(QMainWindow):
                 text,
                 icon=icon_pdf,
                 callback=visualizar_callback,
-                tooltip_text="Clique para visualizar o PDF",
-                button_size=QSize(310, 40),
+                tooltip_text="Clique para gerar o PDF",
+                button_size=QSize(350, 40),
                 icon_size=QSize(40, 40),
                 font_size=18 
             )
@@ -941,7 +961,7 @@ class EditarDadosWindow(QMainWindow):
                 "",
                 icon=icon_copy,
                 callback=sigdem_callback,
-                tooltip_text="Clique para copiar",
+                tooltip_text="Clique para copiar o text",
                 button_size=QSize(40, 40),
                 icon_size=QSize(30, 30),
                 font_size=18 
@@ -1444,12 +1464,23 @@ class EditarDadosWindow(QMainWindow):
                 return str(resultado.values[0]) if not resultado.empty else ""
 
             # Atualizar campos específicos com base nos valores da coluna 'Valor' do DataFrame
-            self.valor_total_edit.setText(obter_valor('Valor Total'))
+            self.valor_total_edit.setText(formatar_para_brl(obter_valor('Valor Total')))
             self.acao_interna_edit.setText(obter_valor('Ação Interna'))
             self.fonte_recursos_edit.setText(obter_valor('Fonte de Recursos'))
             self.natureza_despesa_edit.setText(obter_valor('Natureza da Despesa'))
             self.unidade_orcamentaria_edit.setText(obter_valor('Unidade Orçamentária'))
             self.ptres_edit.setText(obter_valor('PTRES'))
+
+            self.cp_edit.setText(obter_valor('Comunicação Padronizada (CP), Ex: 60-25'))
+            self.par_edit.setText(obter_valor('Código PAR'))
+            self.prioridade_combo.setCurrentText(obter_valor('Prioridade PAR (Necessário, Urgente ou Desejável)'))
+            self.endereco_edit.setText(obter_valor('Endereço'))
+            self.email_edit.setText(obter_valor('Email'))
+            self.cep_edit.setText(obter_valor('CEP'))
+            self.telefone_edit.setText(obter_valor('Telefone'))
+            self.dias_edit.setText(obter_valor('Dias para Recebimento'))
+            self.horario_edit.setText(obter_valor('Horário para Recebimento'))
+            self.justificativa_edit.setPlainText(obter_valor('Justificativa'))
             
             # Configurar o estado do botão de rádio com base no valor encontrado
             atividade_custeio_valor = obter_valor('Atividade de Custeio')

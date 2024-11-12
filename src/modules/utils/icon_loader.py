@@ -26,6 +26,7 @@ def load_icon(icon_name):
 def load_icons():
     return {
         "brasil": load_icon("brasil.png"),
+        "arquivo": load_icon("arquivo.png"),
         "api": load_icon("api.png"),
         "init": load_icon("init.png"),
         "dash": load_icon("dash.png"),

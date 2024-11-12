@@ -35,7 +35,10 @@ class DispensaEletronicaWidget(QMainWindow):
         self.main_widget = QWidget(self)
         self.setCentralWidget(self.main_widget)
         self.main_layout = QVBoxLayout(self.main_widget)
-        
+        label_dispensa = QLabel("Dispensa Eletrônica", self)
+        label_dispensa.setStyleSheet("font-size: 20px; font-weight: bold; color: #4E648B")
+        self.main_layout.addWidget(label_dispensa)
+
         # Layout para a barra de ferramentas
         top_layout = QHBoxLayout()
         self.search_bar = setup_search_bar(self.icons, top_layout, self.proxy_model)
